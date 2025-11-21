@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f7;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e5e7;
+        }
+
+        .badge {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-today {
+            background: #ff3b30;
+            color: white;
+        }
+
+        .badge-longterm {
+            background: #5856d6;
+            color: white;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 16px;
+        }
+
+        .task-group {
+            margin-bottom: 24px;
+        }
+
+        .task-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .task-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+
+        .task-item:hover {
+            background: #f5f5f7;
+        }
+
+        .task-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 6px;
+        }
+
+        .task-item.checked .task-title {
+            text-decoration: line-through;
+            color: #86868b;
+        }
+
+        .subtasks {
+            margin-top: 8px;
+            padding-left: 12px;
+            border-left: 2px solid #e5e5e7;
+        }
+
+        .subtask {
+            display: flex;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 14px;
+            color: #515154;
+        }
+
+        .subtask input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin-top: 2px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .subtask.checked {
+            text-decoration: line-through;
+            color: #86868b;
+        }
+
+        .date-stamp {
+            text-align: center;
+            color: #86868b;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+
+            .section {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            h2 {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="date-stamp">Thursday, November 21, 2024</div>
+
+        <!-- TODAY SECTION -->
+        <div class="section">
+            <div class="section-header">
+                <span class="badge badge-today">Today</span>
+                <h1>Today</h1>
+            </div>
+
+            <div class="task-group">
+                <h2>Giving Tuesday</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Pull list of everyone who got the first GT email</div>
+                    </div>
+                </div>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Identify who has already donated</div>
+                    </div>
+                </div>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Remove donors from the next send</div>
+                    </div>
+                </div>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Finalize content for the second GT email</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="task-group">
+                <h2>Steve's PowerPoint</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Open Alloy</div>
+                    </div>
+                </div>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Work on Steve's PowerPoint deck in Alloy</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LONG-TERM SECTION -->
+        <div class="section">
+            <div class="section-header">
+                <span class="badge badge-longterm">Long-term</span>
+                <h1>Ongoing Projects</h1>
+            </div>
+
+            <div class="task-group">
+                <h2>Strategic Comms Shift</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Move non-urgent comms and random ideas from group texts → app</div>
+                    </div>
+                </div>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Build UI for idea submission so nothing gets lost</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="task-group">
+                <h2>Volunteer Speakers</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Onboard volunteer speakers into the app</div>
+                    </div>
+                </div>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Clean event-signup UI so they can see and self-select upcoming events</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="task-group">
+                <h2>Drivers</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Long-term: drivers should browse events, self-sign up, and get notifications</div>
+                        <div class="subtasks">
+                            <div class="subtask">
+                                <input type="checkbox" onchange="toggleSubtask(this)">
+                                <span>Requires accurate driver location data in the database</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="task-group">
+                <h2>Jordan Clarification</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Have the 5-minute convo about driver list updates</div>
+                        <div class="subtasks">
+                            <div class="subtask">
+                                <input type="checkbox" onchange="toggleSubtask(this)">
+                                <span>Clarify: update driver list not for agreements, but to fill in driver locations to power app tools</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="task-group">
+                <h2>Alloy Folder</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Review the Alloy folder for materials relevant to Steve's deck</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="task-group">
+                <h2>Mobile + Urgent Comms Problem</h2>
+                <div class="task-item">
+                    <input type="checkbox" onchange="toggleTask(this)">
+                    <div class="task-content">
+                        <div class="task-title">Long-term plan to onboard users with SMS consent for urgent items</div>
+                        <div class="subtasks">
+                            <div class="subtask">
+                                <input type="checkbox" onchange="toggleSubtask(this)">
+                                <span>Build targeted text system for urgent comms</span>
+                            </div>
+                            <div class="subtask">
+                                <input type="checkbox" onchange="toggleSubtask(this)">
+                                <span>Possibly build separate mobile-optimized version or separate mobile app</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTask(checkbox) {
+            const taskItem = checkbox.closest('.task-item');
+            if (checkbox.checked) {
+                taskItem.classList.add('checked');
+            } else {
+                taskItem.classList.remove('checked');
+            }
+        }
+
+        function toggleSubtask(checkbox) {
+            const subtask = checkbox.closest('.subtask');
+            if (checkbox.checked) {
+                subtask.classList.add('checked');
+            } else {
+                subtask.classList.remove('checked');
+            }
+        }
+    </script>
+</body>
+</html>
