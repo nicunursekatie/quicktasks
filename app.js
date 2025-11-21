@@ -162,56 +162,79 @@ function renderTask(section, groupIndex, taskIndex, task) {
 
     return `
         <div class="task-item ${task.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
-            <div class="checkbox-wrapper">
-                <input type="checkbox" ${task.completed ? 'checked' : ''}
-                       onchange="toggleTask('${section}', ${groupIndex}, ${taskIndex})">
-            </div>
-            <div class="task-content">
+            <div class="task-content" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">${escapeHtml(task.title)}</div>
                 ${task.subtasks ? `
                     <div class="subtasks">
                         ${task.subtasks.map((subtask, subIndex) => `
-                            <div class="subtask ${subtask.completed ? 'checked' : ''}">
-                                <input type="checkbox" ${subtask.completed ? 'checked' : ''}
-                                       onchange="toggleSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})">
+                            <div class="subtask ${subtask.completed ? 'checked' : ''}" onclick="event.stopPropagation(); editSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" style="cursor: pointer;">
                                 <span>${escapeHtml(subtask.title)}</span>
+                                <button class="subtask-delete-btn" onclick="event.stopPropagation(); deleteSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" title="Delete subtask">×</button>
                             </div>
                         `).join('')}
                     </div>
                 ` : ''}
             </div>
-            <button class="delete-btn" onclick="deleteTask('${section}', ${groupIndex}, ${taskIndex})">🗑️</button>
+            <div class="task-actions">
+                <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
+                <button class="delete-btn" onclick="deleteTask('${section}', ${groupIndex}, ${taskIndex})" title="Delete task">🗑️</button>
+            </div>
         </div>
     `;
 }
 
-// Toggle task completion
-window.toggleTask = function(section, groupIndex, taskIndex) {
-    taskData[section][groupIndex].tasks[taskIndex].completed =
-        !taskData[section][groupIndex].tasks[taskIndex].completed;
-    saveData();
-    renderTasks();
-    updateStats();
-    updateProgress();
+// Edit task
+window.editTask = function(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    const newTitle = prompt('Edit task:', task.title);
+
+    if (newTitle !== null && newTitle.trim() !== '') {
+        task.title = newTitle.trim();
+        saveData();
+        renderTasks();
+    }
 }
 
-// Toggle subtask completion
-window.toggleSubtask = function(section, groupIndex, taskIndex, subIndex) {
-    taskData[section][groupIndex].tasks[taskIndex].subtasks[subIndex].completed =
-        !taskData[section][groupIndex].tasks[taskIndex].subtasks[subIndex].completed;
-    saveData();
-    renderTasks();
-    updateStats();
-    updateProgress();
+// Edit subtask
+window.editSubtask = function(section, groupIndex, taskIndex, subIndex) {
+    const subtask = taskData[section][groupIndex].tasks[taskIndex].subtasks[subIndex];
+    const newTitle = prompt('Edit subtask:', subtask.title);
+
+    if (newTitle !== null && newTitle.trim() !== '') {
+        subtask.title = newTitle.trim();
+        saveData();
+        renderTasks();
+    }
 }
 
-// Delete task
+// Delete task with confirmation
 window.deleteTask = function(section, groupIndex, taskIndex) {
-    if (confirm('Delete this task?')) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    if (confirm(`Are you sure you want to delete this task?\n\n"${task.title}"\n\nThis action cannot be undone.`)) {
         taskData[section][groupIndex].tasks.splice(taskIndex, 1);
         if (taskData[section][groupIndex].tasks.length === 0) {
             taskData[section].splice(groupIndex, 1);
         }
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+}
+
+// Delete subtask with confirmation
+window.deleteSubtask = function(section, groupIndex, taskIndex, subIndex) {
+    const subtask = taskData[section][groupIndex].tasks[taskIndex].subtasks[subIndex];
+
+    if (confirm(`Are you sure you want to delete this subtask?\n\n"${subtask.title}"\n\nThis action cannot be undone.`)) {
+        taskData[section][groupIndex].tasks[taskIndex].subtasks.splice(subIndex, 1);
+
+        // Remove subtasks array if empty
+        if (taskData[section][groupIndex].tasks[taskIndex].subtasks.length === 0) {
+            delete taskData[section][groupIndex].tasks[taskIndex].subtasks;
+        }
+
         saveData();
         renderTasks();
         updateStats();
@@ -358,13 +381,20 @@ document.getElementById('overlay').addEventListener('click', function() {
     this.classList.remove('active');
 });
 
-// Clear all data
+// Clear all data with double confirmation
 window.clearAllData = function() {
-    if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-        localStorage.clear();
-        taskData = initialData;
-        settings = { darkMode: false, showCompleted: true };
-        init();
+    const firstConfirm = confirm('⚠️ WARNING: This will permanently delete ALL your tasks and settings.\n\nAre you sure you want to continue?');
+
+    if (firstConfirm) {
+        const secondConfirm = confirm('⚠️ FINAL WARNING: This action CANNOT be undone!\n\nType YES in your mind and click OK to proceed with deleting everything.');
+
+        if (secondConfirm) {
+            localStorage.clear();
+            taskData = initialData;
+            settings = { darkMode: false, showCompleted: true };
+            init();
+            alert('✓ All data has been cleared and reset to defaults.');
+        }
     }
 }
 

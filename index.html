@@ -913,21 +913,36 @@
             animation: float 4s ease-in-out infinite;
         }
 
-        .delete-btn {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: var(--text-primary);
-            cursor: pointer;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 16px;
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
             opacity: 0;
             transition: all 0.3s ease;
         }
 
-        .task-item:hover .delete-btn {
+        .task-item:hover .task-actions {
             opacity: 1;
+        }
+
+        .edit-btn, .delete-btn {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .edit-btn:hover {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.5);
         }
 
         .delete-btn:hover {
@@ -935,6 +950,32 @@
             color: white;
             transform: scale(1.1);
             box-shadow: 0 4px 15px rgba(255, 107, 107, 0.5);
+        }
+
+        .subtask-delete-btn {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-left: 8px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            font-weight: 700;
+        }
+
+        .subtask:hover .subtask-delete-btn {
+            opacity: 1;
+        }
+
+        .subtask-delete-btn:hover {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            transform: scale(1.15);
+            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.5);
         }
 
         .group-progress {
