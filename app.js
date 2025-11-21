@@ -158,6 +158,13 @@ function renderSection(section, containerId) {
     }).join('');
 }
 
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Render a single task
 function renderTask(section, groupIndex, taskIndex, task) {
     if (!settings.showCompleted && task.completed) return '';
@@ -169,14 +176,14 @@ function renderTask(section, groupIndex, taskIndex, task) {
                        onchange="toggleTask('${section}', ${groupIndex}, ${taskIndex})">
             </div>
             <div class="task-content">
-                <div class="task-title">${task.title}</div>
+                <div class="task-title">${escapeHtml(task.title)}</div>
                 ${task.subtasks ? `
                     <div class="subtasks">
                         ${task.subtasks.map((subtask, subIndex) => `
                             <div class="subtask ${subtask.completed ? 'checked' : ''}">
                                 <input type="checkbox" ${subtask.completed ? 'checked' : ''}
                                        onchange="toggleSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})">
-                                <span>${subtask.title}</span>
+                                <span>${escapeHtml(subtask.title)}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -204,6 +211,7 @@ window.toggleSubtask = function(section, groupIndex, taskIndex, subIndex) {
     saveData();
     renderTasks();
     updateStats();
+    updateProgress();
 }
 
 // Delete task
