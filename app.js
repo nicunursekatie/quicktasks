@@ -134,12 +134,19 @@ function renderSection(section, containerId) {
 
         return `
             <div class="task-group">
-                <h2>
-                    ${group.groupName}
-                    <span style="font-size: 12px; color: var(--text-muted); font-weight: 400;">
-                        (${completedTasks}/${totalTasks})
-                    </span>
-                </h2>
+                <div class="group-header">
+                    <h2 onclick="editGroupName('${section}', ${groupIndex})" style="cursor: pointer;" title="Click to edit project name">
+                        ${escapeHtml(group.groupName)}
+                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 400;">
+                            (${completedTasks}/${totalTasks})
+                        </span>
+                    </h2>
+                    <div class="group-actions">
+                        <button class="group-edit-btn" onclick="editGroupName('${section}', ${groupIndex})" title="Edit project name">✏️</button>
+                        <button class="group-add-task-btn" onclick="addTaskToGroup('${section}', ${groupIndex})" title="Add task to project">➕</button>
+                        <button class="group-delete-btn" onclick="deleteGroup('${section}', ${groupIndex})" title="Delete project">🗑️</button>
+                    </div>
+                </div>
                 <div class="group-progress">
                     <div class="group-progress-fill" style="width: ${progress}%"></div>
                 </div>
@@ -181,6 +188,52 @@ function renderTask(section, groupIndex, taskIndex, task) {
             </div>
         </div>
     `;
+}
+
+// Edit group/project name
+window.editGroupName = function(section, groupIndex) {
+    const group = taskData[section][groupIndex];
+    const newName = prompt('Edit project name:', group.groupName);
+
+    if (newName !== null && newName.trim() !== '') {
+        group.groupName = newName.trim();
+        saveData();
+        renderTasks();
+    }
+}
+
+// Delete group/project with confirmation
+window.deleteGroup = function(section, groupIndex) {
+    const group = taskData[section][groupIndex];
+    const taskCount = group.tasks.length;
+
+    const confirmMsg = taskCount > 0
+        ? `Are you sure you want to delete the project "${group.groupName}"?\n\nThis will delete ${taskCount} task${taskCount === 1 ? '' : 's'}.\n\nThis action cannot be undone.`
+        : `Are you sure you want to delete the project "${group.groupName}"?\n\nThis action cannot be undone.`;
+
+    if (confirm(confirmMsg)) {
+        taskData[section].splice(groupIndex, 1);
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+}
+
+// Add task to specific group
+window.addTaskToGroup = function(section, groupIndex) {
+    const taskTitle = prompt('Enter new task:');
+
+    if (taskTitle !== null && taskTitle.trim() !== '') {
+        taskData[section][groupIndex].tasks.push({
+            title: taskTitle.trim(),
+            completed: false
+        });
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
 }
 
 // Edit task
@@ -235,6 +288,22 @@ window.deleteSubtask = function(section, groupIndex, taskIndex, subIndex) {
             delete taskData[section][groupIndex].tasks[taskIndex].subtasks;
         }
 
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+}
+
+// Create new group/project
+window.createNewGroup = function(section) {
+    const groupName = prompt('Enter new project name:');
+
+    if (groupName !== null && groupName.trim() !== '') {
+        taskData[section].push({
+            groupName: groupName.trim(),
+            tasks: []
+        });
         saveData();
         renderTasks();
         updateStats();
