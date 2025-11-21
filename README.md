@@ -224,3 +224,4 @@ For issues or questions:
 ---
 
 Built with ❤️ using vanilla JavaScript and Firebase
+# Auto-deploy enabled
