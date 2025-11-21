@@ -1,13 +1,4 @@
-import { db } from './firebase-config.js';
-import {
-    collection,
-    doc,
-    getDoc,
-    setDoc,
-    onSnapshot,
-    serverTimestamp
-} from 'firebase/firestore';
-
+// Firebase will be initialized in index.html
 // Initial task data
 const initialData = {
     today: [
@@ -381,22 +372,6 @@ window.clearAllData = function() {
 function saveData() {
     localStorage.setItem('taskData', JSON.stringify(taskData));
     localStorage.setItem('settings', JSON.stringify(settings));
-}
-
-// Tab Switching for embedded content
-window.switchTab = function(event, tab) {
-    const frame = document.getElementById('contentFrame');
-    const buttons = document.querySelectorAll('.tab-btn');
-
-    buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-
-    const urls = {
-        'calendar': 'https://calendar.google.com/calendar/embed',
-        'platform': 'https://sandwich-project-platform-final-katielong2316.replit.app/'
-    };
-
-    frame.src = urls[tab];
 }
 
 // Keyboard shortcuts
