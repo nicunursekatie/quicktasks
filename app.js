@@ -375,6 +375,22 @@ function saveData() {
     localStorage.setItem('settings', JSON.stringify(settings));
 }
 
+// Tab Switching for embedded content
+window.switchTab = function(event, tab) {
+    const frame = document.getElementById('contentFrame');
+    const buttons = document.querySelectorAll('.tab-btn');
+
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const urls = {
+        'calendar': 'https://calendar.google.com/calendar/embed',
+        'platform': 'https://sandwich-project-platform-final-katielong2316.replit.app/'
+    };
+
+    frame.src = urls[tab];
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
     // Cmd/Ctrl + K to focus quick add
