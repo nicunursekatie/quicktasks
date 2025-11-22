@@ -144,6 +144,7 @@ function renderSection(section, containerId) {
                     <div class="group-actions">
                         <button class="group-edit-btn" onclick="editGroupName('${section}', ${groupIndex})" title="Edit project name">✏️</button>
                         <button class="group-add-task-btn" onclick="addTaskToGroup('${section}', ${groupIndex})" title="Add task to project">➕</button>
+                        <button class="group-move-btn" onclick="moveGroup('${section}', ${groupIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
                         <button class="group-delete-btn" onclick="deleteGroup('${section}', ${groupIndex})" title="Delete project">🗑️</button>
                     </div>
                 </div>
@@ -184,6 +185,7 @@ function renderTask(section, groupIndex, taskIndex, task) {
             </div>
             <div class="task-actions">
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
+                <button class="move-btn" onclick="moveTask('${section}', ${groupIndex}, ${taskIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
                 <button class="delete-btn" onclick="deleteTask('${section}', ${groupIndex}, ${taskIndex})" title="Delete task">🗑️</button>
             </div>
         </div>
@@ -309,6 +311,55 @@ window.createNewGroup = function(section) {
         updateStats();
         updateProgress();
     }
+}
+
+// Move group/project to other section
+window.moveGroup = function(fromSection, groupIndex) {
+    const toSection = fromSection === 'today' ? 'longterm' : 'today';
+    const group = taskData[fromSection][groupIndex];
+    const sectionName = toSection === 'today' ? 'Today' : 'Ongoing Projects';
+
+    if (confirm(`Move "${group.groupName}" to ${sectionName}?`)) {
+        // Remove from current section
+        taskData[fromSection].splice(groupIndex, 1);
+
+        // Add to target section
+        taskData[toSection].push(group);
+
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+}
+
+// Move task to other section
+window.moveTask = function(fromSection, groupIndex, taskIndex) {
+    const toSection = fromSection === 'today' ? 'longterm' : 'today';
+    const task = taskData[fromSection][groupIndex].tasks[taskIndex];
+    const sectionName = toSection === 'today' ? 'Today' : 'Ongoing Projects';
+
+    // Remove task from current group
+    taskData[fromSection][groupIndex].tasks.splice(taskIndex, 1);
+
+    // Remove group if empty
+    if (taskData[fromSection][groupIndex].tasks.length === 0) {
+        taskData[fromSection].splice(groupIndex, 1);
+    }
+
+    // Add to "Quick Tasks" group in target section or create it
+    let quickGroup = taskData[toSection].find(g => g.groupName === 'Quick Tasks');
+    if (!quickGroup) {
+        quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+        taskData[toSection].unshift(quickGroup);
+    }
+
+    quickGroup.tasks.push(task);
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
 }
 
 // Quick add task
