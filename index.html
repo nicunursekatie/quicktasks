@@ -284,6 +284,107 @@
             gap: 8px;
         }
 
+        .calendar-widget {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .calendar-month {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .calendar-nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .calendar-nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .calendar-day-name {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.7);
+            padding: 4px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .calendar-dates {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .calendar-date {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .calendar-date:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
+        }
+
+        .calendar-date.today {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.6);
+            font-weight: 800;
+        }
+
+        .calendar-date.other-month {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .calendar-date.selected {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            box-shadow: 0 0 12px rgba(67, 233, 123, 0.5);
+        }
+
         .date-stamp {
             text-align: center;
             color: var(--text-primary);
@@ -1140,12 +1241,13 @@
                 </div>
             </div>
 
-            <!-- Quick Links -->
+            <!-- Calendar Widget -->
             <div class="embedded-section">
-                <div class="embedded-header">Quick Links</div>
-                <div class="quick-links-section">
+                <div class="embedded-header">Quick Calendar</div>
+                <div id="calendarWidget" class="calendar-widget"></div>
+                <div class="quick-links-section" style="margin-top: 12px;">
                     <a href="https://calendar.google.com/calendar/u/0/r" target="_blank" class="resource-link">
-                        <span class="resource-title">📅 Google Calendar</span>
+                        <span class="resource-title">📅 Full Calendar</span>
                     </a>
                     <a href="https://sandwich-project-platform-final-katielong2316.replit.app/" target="_blank" class="resource-link">
                         <span class="resource-title">🚀 TSP Platform</span>
@@ -1212,6 +1314,97 @@
         </div>
     </div>
 
+
+    <!-- Calendar Widget Script -->
+    <script>
+        // Simple inline calendar widget
+        let currentCalendarDate = new Date();
+        let selectedDate = null;
+
+        function renderCalendar() {
+            const widget = document.getElementById('calendarWidget');
+            const today = new Date();
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+
+            let html = `
+                <div class="calendar-header">
+                    <div class="calendar-month">${monthNames[month]} ${year}</div>
+                    <div class="calendar-nav">
+                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">◀</button>
+                        <button class="calendar-nav-btn" onclick="changeMonth(1)">▶</button>
+                    </div>
+                </div>
+                <div class="calendar-days">
+                    <div class="calendar-day-name">S</div>
+                    <div class="calendar-day-name">M</div>
+                    <div class="calendar-day-name">T</div>
+                    <div class="calendar-day-name">W</div>
+                    <div class="calendar-day-name">T</div>
+                    <div class="calendar-day-name">F</div>
+                    <div class="calendar-day-name">S</div>
+                </div>
+                <div class="calendar-dates">
+            `;
+
+            // Previous month's trailing days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const date = daysInPrevMonth - i;
+                html += `<div class="calendar-date other-month">${date}</div>`;
+            }
+
+            // Current month's days
+            for (let date = 1; date <= daysInMonth; date++) {
+                const isToday = date === today.getDate() &&
+                    month === today.getMonth() &&
+                    year === today.getFullYear();
+
+                const isSelected = selectedDate &&
+                    date === selectedDate.getDate() &&
+                    month === selectedDate.getMonth() &&
+                    year === selectedDate.getFullYear();
+
+                const classes = ['calendar-date'];
+                if (isToday) classes.push('today');
+                if (isSelected) classes.push('selected');
+
+                html += `<div class="${classes.join(' ')}" onclick="selectDate(${year}, ${month}, ${date})">${date}</div>`;
+            }
+
+            // Next month's leading days
+            const totalCells = firstDay + daysInMonth;
+            const remainingCells = 7 - (totalCells % 7);
+            if (remainingCells < 7) {
+                for (let date = 1; date <= remainingCells; date++) {
+                    html += `<div class="calendar-date other-month">${date}</div>`;
+                }
+            }
+
+            html += `</div>`;
+            widget.innerHTML = html;
+        }
+
+        function changeMonth(delta) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function selectDate(year, month, date) {
+            selectedDate = new Date(year, month, date);
+            renderCalendar();
+        }
+
+        // Initialize calendar on load
+        window.addEventListener('load', renderCalendar);
+    </script>
 
     <!-- Firebase SDK -->
     <script type="module">
