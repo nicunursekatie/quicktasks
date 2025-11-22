@@ -1698,19 +1698,31 @@
             </div>
         </div>
 
-        <div class="setting-item" id="openaiKeySection" style="border-bottom: none; display: block;">
+        <div class="setting-item" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2); display: block;">
             <div class="setting-label" style="margin-bottom: 8px;">OpenAI API Key</div>
-            <input type="password" id="openaiApiKey" placeholder="sk-proj-..."
-                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: monospace;"
-                   onchange="saveAPIKeys()">
-            <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Stored locally on your device only</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="password" id="openaiApiKey" placeholder="sk-proj-..."
+                       style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: monospace;"
+                       onchange="saveAPIKeys()">
+                <button onclick="testOpenAIKey()"
+                        style="padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                    Test
+                </button>
+            </div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Note: Won't work from browser (CORS issue)</div>
         </div>
 
-        <div class="setting-item" id="geminiKeySection" style="border-bottom: none; display: none;">
-            <div class="setting-label" style="margin-bottom: 8px;">Gemini API Key</div>
-            <input type="password" id="geminiApiKey" placeholder="AIza..."
-                   style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: monospace;"
-                   onchange="saveAPIKeys()">
+        <div class="setting-item" style="border-bottom: none; display: block;">
+            <div class="setting-label" style="margin-bottom: 8px;">Gemini API Key ✨</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="password" id="geminiApiKey" placeholder="AIza..."
+                       style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: monospace;"
+                       onchange="saveAPIKeys()">
+                <button onclick="testGeminiKey()"
+                        style="padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                    Test
+                </button>
+            </div>
             <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Stored locally on your device only</div>
         </div>
 

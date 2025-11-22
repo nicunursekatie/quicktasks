@@ -550,7 +550,6 @@ window.saveAIProvider = function() {
     const providerSelect = document.getElementById('aiProvider');
     settings.aiProvider = providerSelect.value;
     saveData();
-    updateAIKeyVisibility();
 }
 
 window.saveAPIKeys = function() {
@@ -578,23 +577,76 @@ function loadOpenAIKey() {
     if (providerSelect) {
         providerSelect.value = settings.aiProvider || 'gemini';
     }
-
-    updateAIKeyVisibility();
 }
 
-function updateAIKeyVisibility() {
-    const openaiSection = document.getElementById('openaiKeySection');
-    const geminiSection = document.getElementById('geminiKeySection');
-    const provider = settings.aiProvider || 'gemini';
+// Test API Keys
+window.testOpenAIKey = async function() {
+    const apiKey = document.getElementById('openaiApiKey').value.trim();
+    if (!apiKey) {
+        alert('⚠️ Please enter an OpenAI API key first!');
+        return;
+    }
 
-    if (openaiSection && geminiSection) {
-        if (provider === 'openai') {
-            openaiSection.style.display = 'block';
-            geminiSection.style.display = 'none';
+    alert('🧪 Testing OpenAI API key...\n\nNote: This will likely fail due to CORS restrictions in the browser.');
+
+    try {
+        const response = await fetch('https://cors-anywhere.herokuapp.com/https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: 'Say "API key works!"' }],
+                max_tokens: 10
+            })
+        });
+
+        if (response.ok) {
+            alert('✅ OpenAI API Key is valid!');
         } else {
-            openaiSection.style.display = 'none';
-            geminiSection.style.display = 'block';
+            const error = await response.json();
+            alert(`❌ OpenAI API Key Error: ${error.error?.message || 'Invalid key'}`);
         }
+    } catch (error) {
+        alert(`❌ Test Failed: ${error.message}\n\nThis is expected - OpenAI blocks browser requests. The key might still work, but you need a backend server.`);
+    }
+}
+
+window.testGeminiKey = async function() {
+    const apiKey = document.getElementById('geminiApiKey').value.trim();
+    if (!apiKey) {
+        alert('⚠️ Please enter a Gemini API key first!');
+        return;
+    }
+
+    alert('🧪 Testing Gemini API key...');
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: 'Say "API key works!"'
+                    }]
+                }]
+            })
+        });
+
+        if (response.ok) {
+            alert('✅ Gemini API Key is valid and working!');
+        } else {
+            const error = await response.json();
+            alert(`❌ Gemini API Key Error: ${error.error?.message || 'Invalid key'}`);
+        }
+    } catch (error) {
+        alert(`❌ Test Failed: ${error.message}`);
     }
 }
 
