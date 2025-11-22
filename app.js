@@ -87,7 +87,7 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
     showCompleted: true,
     openaiApiKey: '',
     geminiApiKey: '',
-    aiProvider: 'openai'
+    aiProvider: 'gemini'
 };
 
 let currentUser = null;
@@ -576,7 +576,7 @@ function loadOpenAIKey() {
         geminiInput.value = settings.geminiApiKey;
     }
     if (providerSelect) {
-        providerSelect.value = settings.aiProvider || 'openai';
+        providerSelect.value = settings.aiProvider || 'gemini';
     }
 
     updateAIKeyVisibility();
@@ -585,7 +585,7 @@ function loadOpenAIKey() {
 function updateAIKeyVisibility() {
     const openaiSection = document.getElementById('openaiKeySection');
     const geminiSection = document.getElementById('geminiKeySection');
-    const provider = settings.aiProvider || 'openai';
+    const provider = settings.aiProvider || 'gemini';
 
     if (openaiSection && geminiSection) {
         if (provider === 'openai') {
@@ -616,11 +616,13 @@ async function callOpenAI(systemPrompt, userPrompt) {
     }
 
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        // Use CORS proxy for OpenAI API
+        const response = await fetch('https://cors-anywhere.herokuapp.com/https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${settings.openaiApiKey}`
+                'Authorization': `Bearer ${settings.openaiApiKey}`,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
@@ -633,14 +635,14 @@ async function callOpenAI(systemPrompt, userPrompt) {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error?.message || 'OpenAI API request failed');
+            const error = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+            throw new Error(error.error?.message || `OpenAI API error: ${response.status}`);
         }
 
         const data = await response.json();
         return data.choices[0].message.content;
     } catch (error) {
-        alert(`❌ OpenAI Error: ${error.message}`);
+        alert(`❌ OpenAI Error: ${error.message}\n\nNote: OpenAI has CORS restrictions. Try using Gemini instead (Settings → AI Provider → Gemini)`);
         return null;
     }
 }
