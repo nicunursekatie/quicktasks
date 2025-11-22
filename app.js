@@ -95,6 +95,85 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
 let currentUser = null;
 let unsubscribe = null;
 
+// Custom Modal System
+let modalResolve = null;
+
+function showCustomModal(title, message, defaultValue = '') {
+    return new Promise((resolve) => {
+        modalResolve = resolve;
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalMessage').textContent = message;
+        const input = document.getElementById('modalInput');
+        input.value = defaultValue;
+        document.getElementById('customModal').classList.add('active');
+        input.focus();
+
+        // Handle keyboard shortcuts
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                closeCustomModal();
+                input.removeEventListener('keydown', handleKeyDown);
+            } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                submitCustomModal();
+                input.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+        input.addEventListener('keydown', handleKeyDown);
+    });
+}
+
+function closeCustomModal() {
+    document.getElementById('customModal').classList.remove('active');
+    if (modalResolve) {
+        modalResolve(null);
+        modalResolve = null;
+    }
+}
+
+function submitCustomModal() {
+    const value = document.getElementById('modalInput').value;
+    document.getElementById('customModal').classList.remove('active');
+    if (modalResolve) {
+        modalResolve(value);
+        modalResolve = null;
+    }
+}
+
+// Make functions globally available
+window.showCustomModal = showCustomModal;
+window.closeCustomModal = closeCustomModal;
+window.submitCustomModal = submitCustomModal;
+
+// Helper function to extract JSON from AI response
+function extractJSON(response) {
+    // Try direct parse first
+    try {
+        return JSON.parse(response);
+    } catch (e) {
+        // Look for JSON in markdown code blocks
+        const codeBlockMatch = response.match(/```(?:json)?\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/);
+        if (codeBlockMatch) {
+            try {
+                return JSON.parse(codeBlockMatch[1]);
+            } catch (e2) {
+                // Continue to next attempt
+            }
+        }
+
+        // Look for JSON array or object anywhere in the response
+        const jsonMatch = response.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[1]);
+            } catch (e3) {
+                // Continue to next attempt
+            }
+        }
+
+        throw new Error('Could not extract valid JSON from response');
+    }
+}
+
 // Initialize
 function init() {
     updateDateStamp();
@@ -177,13 +256,23 @@ function renderTask(section, groupIndex, taskIndex, task) {
 
     return `
         <div class="task-item ${task.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
+            <input type="checkbox"
+                   class="task-checkbox"
+                   ${task.completed ? 'checked' : ''}
+                   onclick="toggleTask('${section}', ${groupIndex}, ${taskIndex})"
+                   title="Mark as ${task.completed ? 'incomplete' : 'complete'}">
             <div class="task-content" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">${escapeHtml(task.title)}</div>
                 ${task.subtasks ? `
                     <div class="subtasks">
                         ${task.subtasks.map((subtask, subIndex) => `
-                            <div class="subtask ${subtask.completed ? 'checked' : ''}" onclick="event.stopPropagation(); editSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" style="cursor: pointer;">
-                                <span>${escapeHtml(subtask.title)}</span>
+                            <div class="subtask ${subtask.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
+                                <input type="checkbox"
+                                       class="subtask-checkbox"
+                                       ${subtask.completed ? 'checked' : ''}
+                                       onclick="toggleSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})"
+                                       title="Mark subtask as ${subtask.completed ? 'incomplete' : 'complete'}">
+                                <span onclick="editSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" style="cursor: pointer; flex: 1;">${escapeHtml(subtask.title)}</span>
                                 <button class="subtask-delete-btn" onclick="event.stopPropagation(); deleteSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" title="Delete subtask">×</button>
                             </div>
                         `).join('')}
@@ -198,6 +287,26 @@ function renderTask(section, groupIndex, taskIndex, task) {
             </div>
         </div>
     `;
+}
+
+// Toggle task completion
+window.toggleTask = function(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    task.completed = !task.completed;
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+}
+
+// Toggle subtask completion
+window.toggleSubtask = function(section, groupIndex, taskIndex, subIndex) {
+    const subtask = taskData[section][groupIndex].tasks[taskIndex].subtasks[subIndex];
+    subtask.completed = !subtask.completed;
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
 }
 
 // Edit group/project name
@@ -246,16 +355,134 @@ window.addTaskToGroup = function(section, groupIndex) {
     }
 }
 
-// Edit task
+// Task Edit Modal State
+let currentEditTask = null;
+
+// Edit task with modal
 window.editTask = function(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
-    const newTitle = prompt('Edit task:', task.title);
+    currentEditTask = { section, groupIndex, taskIndex };
 
-    if (newTitle !== null && newTitle.trim() !== '') {
-        task.title = newTitle.trim();
-        saveData();
-        renderTasks();
+    // Populate modal
+    document.getElementById('taskEditTitle').value = task.title;
+
+    // Render subtasks
+    const container = document.getElementById('taskEditSubtasksContainer');
+    if (task.subtasks && task.subtasks.length > 0) {
+        container.innerHTML = `
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Subtasks</label>
+                <div id="subtasksList"></div>
+            </div>
+        `;
+        renderEditSubtasks();
+    } else {
+        container.innerHTML = '';
     }
+
+    // Show modal
+    document.getElementById('taskEditModal').classList.add('active');
+    document.getElementById('taskEditTitle').focus();
+}
+
+function renderEditSubtasks() {
+    const { section, groupIndex, taskIndex } = currentEditTask;
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    const list = document.getElementById('subtasksList');
+
+    if (!task.subtasks || task.subtasks.length === 0) {
+        list.innerHTML = '<p style="color: #999; font-size: 13px; font-style: italic;">No subtasks yet</p>';
+        return;
+    }
+
+    list.innerHTML = task.subtasks.map((subtask, index) => `
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <input type="text" value="${subtask.title.replace(/"/g, '&quot;')}"
+                   data-subtask-index="${index}"
+                   class="subtask-edit-input"
+                   style="flex: 1; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 13px;">
+            <button onclick="deleteSubtaskInEdit(${index})"
+                    style="padding: 10px 14px; background: rgba(255, 0, 0, 0.1); color: #e74c3c; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                ×
+            </button>
+        </div>
+    `).join('');
+}
+
+window.addSubtaskInEdit = function() {
+    const { section, groupIndex, taskIndex } = currentEditTask;
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    if (!task.subtasks) {
+        task.subtasks = [];
+        document.getElementById('taskEditSubtasksContainer').innerHTML = `
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Subtasks</label>
+                <div id="subtasksList"></div>
+            </div>
+        `;
+    }
+
+    task.subtasks.push({ title: '', completed: false });
+    renderEditSubtasks();
+
+    // Focus the new input
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.subtask-edit-input');
+        if (inputs.length > 0) {
+            inputs[inputs.length - 1].focus();
+        }
+    }, 0);
+}
+
+window.deleteSubtaskInEdit = function(index) {
+    const { section, groupIndex, taskIndex } = currentEditTask;
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    task.subtasks.splice(index, 1);
+    if (task.subtasks.length === 0) {
+        delete task.subtasks;
+        document.getElementById('taskEditSubtasksContainer').innerHTML = '';
+    } else {
+        renderEditSubtasks();
+    }
+}
+
+window.closeTaskEditModal = function() {
+    document.getElementById('taskEditModal').classList.remove('active');
+    currentEditTask = null;
+}
+
+window.submitTaskEdit = function() {
+    const { section, groupIndex, taskIndex } = currentEditTask;
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    // Update title
+    const newTitle = document.getElementById('taskEditTitle').value.trim();
+    if (newTitle) {
+        task.title = newTitle;
+    }
+
+    // Update subtasks
+    if (task.subtasks) {
+        const inputs = document.querySelectorAll('.subtask-edit-input');
+        inputs.forEach((input, index) => {
+            const value = input.value.trim();
+            if (value) {
+                task.subtasks[index].title = value;
+            }
+        });
+
+        // Remove empty subtasks
+        task.subtasks = task.subtasks.filter(s => s.title.trim() !== '');
+        if (task.subtasks.length === 0) {
+            delete task.subtasks;
+        }
+    }
+
+    saveData();
+    renderTasks();
+    closeTaskEditModal();
 }
 
 // Edit subtask
@@ -903,16 +1130,11 @@ async function callAnthropic(systemPrompt, userPrompt) {
 }
 
 // Show AI menu for a task
-window.showAIMenu = function(section, groupIndex, taskIndex) {
+window.showAIMenu = async function(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
-    const choice = prompt(
-        `AI Assistant for: "${task.title}"\n\n` +
-        `Choose an action:\n` +
-        `1 - ADHD-Friendly Breakdown (with energy levels & tips)\n` +
-        `2 - Fuzzy Breakdown (for overwhelming/vague tasks)\n` +
-        `3 - Simple Breakdown (quick subtasks)\n` +
-        `4 - Rephrase as action-based\n\n` +
-        `Enter 1-4:`
+    const choice = await showCustomModal(
+        '🤖 AI Assistant',
+        `AI Assistant for: "${task.title}"\n\nChoose an action:\n1 - ADHD-Friendly Breakdown (with energy levels & tips)\n2 - Fuzzy Breakdown (for overwhelming/vague tasks)\n3 - Simple Breakdown (quick subtasks)\n4 - Rephrase as action-based\n\nEnter 1-4:`
     );
 
     if (choice === '1') {
@@ -931,18 +1153,15 @@ async function aiADHDBreakdown(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
 
     // Gather context
-    const blockers = prompt(
-        `Task: "${task.title}"\n\n` +
-        `What's blocking you from starting?\n` +
-        `(e.g., "not sure where to begin", "need to find files", "too overwhelming")\n\n` +
-        `(Optional - click OK to skip)`
+    const blockers = await showCustomModal(
+        '💭 What\'s Blocking You?',
+        `Task: "${task.title}"\n\nWhat's blocking you from starting?\n(e.g., "not sure where to begin", "need to find files", "too overwhelming")\n\n(Optional - leave blank to skip)`
     );
     if (blockers === null) return;
 
-    const currentState = prompt(
-        `What's your current state/context?\n` +
-        `(e.g., "have all materials ready", "just starting", "halfway done")\n\n` +
-        `(Optional - click OK to skip)`
+    const currentState = await showCustomModal(
+        '📍 Current State',
+        `What's your current state/context?\n(e.g., "have all materials ready", "just starting", "halfway done")\n\n(Optional - leave blank to skip)`
     );
     if (currentState === null) return;
 
@@ -983,16 +1202,16 @@ Example:
     if (!response) return;
 
     try {
-        const steps = JSON.parse(response);
+        const steps = extractJSON(response);
 
         // Format preview with energy levels and tips
         const preview = steps.map((s, i) =>
             `${i + 1}. [${s.energy?.toUpperCase()}] ${s.step}\n   ⏱ ${s.timeEstimate}\n   💡 ${s.adhdTip}`
         ).join('\n\n');
 
-        const userInput = prompt(
-            `AI suggests these ADHD-friendly steps:\n\n${preview}\n\n` +
-            `Edit if needed, or click OK to apply:`
+        const userInput = await showCustomModal(
+            '✨ AI Suggestions',
+            `AI suggests these ADHD-friendly steps:\n\n${preview}\n\nEdit if needed, or click Submit to apply:`
         );
 
         if (userInput === null) return;
@@ -1021,19 +1240,19 @@ async function aiFuzzyBreakdown(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
 
     // 5-question flow
-    const q1 = prompt(`Task: "${task.title}"\n\nQuestion 1/5: What's the ideal outcome? What does "done" look like?`);
+    const q1 = await showCustomModal('❓ Question 1/5', `Task: "${task.title}"\n\nWhat's the ideal outcome? What does "done" look like?`);
     if (q1 === null) return;
 
-    const q2 = prompt(`Question 2/5: What's blocking you or making this feel overwhelming?`);
+    const q2 = await showCustomModal('❓ Question 2/5', `What's blocking you or making this feel overwhelming?`);
     if (q2 === null) return;
 
-    const q3 = prompt(`Question 3/5: What information or resources do you already have?`);
+    const q3 = await showCustomModal('❓ Question 3/5', `What information or resources do you already have?`);
     if (q3 === null) return;
 
-    const q4 = prompt(`Question 4/5: Who else is involved or needs to be consulted?`);
+    const q4 = await showCustomModal('❓ Question 4/5', `Who else is involved or needs to be consulted?`);
     if (q4 === null) return;
 
-    const q5 = prompt(`Question 5/5: How urgent is this? Any specific deadlines?`);
+    const q5 = await showCustomModal('❓ Question 5/5', `How urgent is this? Any specific deadlines?`);
     if (q5 === null) return;
 
     const systemPrompt = `You are an ADHD task coach specializing in breaking down vague, overwhelming tasks. Based on the user's answers, generate 4-6 concrete, actionable tasks.
@@ -1071,15 +1290,15 @@ Generate actionable tasks that address the blockers first and build momentum.`;
     if (!response) return;
 
     try {
-        const tasks = JSON.parse(response);
+        const tasks = extractJSON(response);
 
         const preview = tasks.map((t, i) =>
             `${i + 1}. [${t.type}] ${t.task}\n   Energy: ${t.energy} | Time: ${t.timeEstimate} | Weight: ${t.emotionalWeight}`
         ).join('\n\n');
 
-        const userInput = prompt(
-            `Based on your answers, AI suggests:\n\n${preview}\n\n` +
-            `Edit if needed, or click OK to apply:`
+        const userInput = await showCustomModal(
+            '✨ AI Suggestions',
+            `Based on your answers, AI suggests:\n\n${preview}\n\nEdit if needed, or click Submit to apply:`
         );
 
         if (userInput === null) return;
@@ -1096,7 +1315,9 @@ Generate actionable tasks that address the blockers first and build momentum.`;
             alert('✅ Fuzzy breakdown complete!');
         }
     } catch (error) {
-        alert('❌ Error parsing AI response. Please try again.');
+        console.error('Fuzzy breakdown error:', error);
+        console.log('AI Response:', response);
+        alert(`❌ Error parsing AI response: ${error.message}\n\nCheck browser console for details or try again.`);
     }
 }
 
@@ -1114,14 +1335,14 @@ async function aiBreakdownTask(section, groupIndex, taskIndex) {
     if (!response) return;
 
     try {
-        const subtasks = JSON.parse(response);
+        const subtasks = extractJSON(response);
 
         // Show preview to user
         const preview = subtasks.map((s, i) => `${i + 1}. ${s}`).join('\n');
-        const userInput = prompt(
-            `AI suggests these subtasks:\n\n${preview}\n\n` +
-            `Edit if needed (one per line), or click OK to apply:`
-            , preview
+        const userInput = await showCustomModal(
+            '✨ AI Suggestions',
+            `AI suggests these subtasks:\n\n${preview}\n\nEdit if needed (one per line), or click Submit to apply:`,
+            preview
         );
 
         if (userInput === null) return; // Cancelled
@@ -1139,7 +1360,9 @@ async function aiBreakdownTask(section, groupIndex, taskIndex) {
             alert('✅ Subtasks added!');
         }
     } catch (error) {
-        alert('❌ Error parsing AI response. Please try again.');
+        console.error('Simple breakdown error:', error);
+        console.log('AI Response:', response);
+        alert(`❌ Error parsing AI response: ${error.message}\n\nCheck browser console for details or try again.`);
     }
 }
 
@@ -1148,10 +1371,9 @@ async function aiRephraseTask(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
 
     // Ask for additional context
-    const additionalContext = prompt(
-        `Task: "${task.title}"\n\n` +
-        `Is there any additional context I should know?\n\n` +
-        `(Optional - just click OK to skip, or add details about goals, constraints, deadlines, etc.)`
+    const additionalContext = await showCustomModal(
+        '📝 Additional Context',
+        `Task: "${task.title}"\n\nIs there any additional context I should know?\n\n(Optional - leave blank to skip, or add details about goals, constraints, deadlines, etc.)`
     );
 
     if (additionalContext === null) return; // Cancelled
@@ -1160,9 +1382,27 @@ async function aiRephraseTask(section, groupIndex, taskIndex) {
         ? `\n\nAdditional context: ${additionalContext.trim()}`
         : '';
 
-    const systemPrompt = `You are a productivity coach. Rephrase tasks to be action-oriented, starting with strong verbs. Make them clear, specific, and motivating. Return ONLY the rephrased task text, no quotes or extra text.`;
+    const systemPrompt = `You are an ADHD-specialized task coach. Rephrase tasks to be IMMEDIATELY ACTIONABLE and concrete. Rules:
 
-    const userPrompt = `Rephrase this task to be more action-oriented:\n"${task.title}"${contextNote}`;
+1. Start with a SPECIFIC action verb (Open, Send, Call, Write, Review, Schedule, etc.)
+2. Be ultra-specific - no vague language
+3. Focus on the NEXT PHYSICAL ACTION, not the outcome
+4. Keep it SHORT and clear (under 10 words if possible)
+5. Remove abstract/overwhelming language
+6. Make it something you can START in under 2 minutes
+
+BAD (vague/overwhelming): "Work on proposal"
+GOOD (concrete/actionable): "Open proposal doc and write intro paragraph"
+
+BAD: "Handle email backlog"
+GOOD: "Reply to the 3 oldest unread emails"
+
+BAD: "Plan the event"
+GOOD: "List 5 tasks needed for the event"
+
+Return ONLY the rephrased task text, no quotes or extra text.`;
+
+    const userPrompt = `Rephrase this task to be ADHD-friendly and immediately actionable:\n"${task.title}"${contextNote}`;
 
     alert('🤖 AI is thinking...');
 
@@ -1170,10 +1410,10 @@ async function aiRephraseTask(section, groupIndex, taskIndex) {
     if (!response) return;
 
     // Show preview to user
-    const userInput = prompt(
-        `AI suggests:\n\n"${response}"\n\n` +
-        `Edit if needed, or click OK to apply:`
-        , response
+    const userInput = await showCustomModal(
+        '✨ AI Suggestion',
+        `AI suggests:\n\n"${response}"\n\nEdit if needed, or click Submit to apply:`,
+        response
     );
 
     if (userInput === null) return; // Cancelled
@@ -1199,14 +1439,14 @@ window.aiBreakdownProject = async function(section, groupIndex) {
     if (!response) return;
 
     try {
-        const tasks = JSON.parse(response);
+        const tasks = extractJSON(response);
 
         // Show preview to user
         const preview = tasks.map((t, i) => `${i + 1}. ${t}`).join('\n');
-        const userInput = prompt(
-            `AI suggests these tasks for "${group.groupName}":\n\n${preview}\n\n` +
-            `Edit if needed (one per line), or click OK to apply:`
-            , preview
+        const userInput = await showCustomModal(
+            '✨ AI Suggestions',
+            `AI suggests these tasks for "${group.groupName}":\n\n${preview}\n\nEdit if needed (one per line), or click Submit to apply:`,
+            preview
         );
 
         if (userInput === null) return; // Cancelled
@@ -1227,7 +1467,9 @@ window.aiBreakdownProject = async function(section, groupIndex) {
             alert('✅ Tasks added to project!');
         }
     } catch (error) {
-        alert('❌ Error parsing AI response. Please try again.');
+        console.error('Project breakdown error:', error);
+        console.log('AI Response:', response);
+        alert(`❌ Error parsing AI response: ${error.message}\n\nCheck browser console for details or try again.`);
     }
 }
 
