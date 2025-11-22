@@ -410,6 +410,64 @@
             /* Removed float animation to reduce GPU usage */
         }
 
+        /* Today Section - Warm, urgent colors */
+        #todaySection {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.2) 0%, rgba(254, 202, 87, 0.15) 100%);
+            border: 2px solid rgba(255, 107, 107, 0.4);
+            box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+        }
+
+        #todaySection::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, rgba(254, 202, 87, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        #todaySection:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(255, 107, 107, 0.4);
+            border-color: rgba(255, 107, 107, 0.6);
+        }
+
+        #todaySection:hover::before {
+            opacity: 1;
+        }
+
+        /* Longterm Section - Cool, calm colors */
+        #longtermSection {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.15) 100%);
+            border: 2px solid rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        #longtermSection::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        #longtermSection:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+
+        #longtermSection:hover::before {
+            opacity: 1;
+        }
+
         .section::before {
             content: '';
             position: absolute;
