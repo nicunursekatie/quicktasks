@@ -84,7 +84,8 @@ const initialData = {
 let taskData = JSON.parse(localStorage.getItem('taskData')) || initialData;
 let settings = JSON.parse(localStorage.getItem('settings')) || {
     darkMode: false,
-    showCompleted: true
+    showCompleted: true,
+    openaiApiKey: ''
 };
 
 let currentUser = null;
@@ -97,6 +98,7 @@ function init() {
     renderTasks();
     updateStats();
     updateProgress();
+    loadOpenAIKey();
 }
 
 // Update date stamp
@@ -145,6 +147,7 @@ function renderSection(section, containerId) {
                         <button class="group-edit-btn" onclick="editGroupName('${section}', ${groupIndex})" title="Edit project name">✏️</button>
                         <button class="group-add-task-btn" onclick="addTaskToGroup('${section}', ${groupIndex})" title="Add task to project">➕</button>
                         <button class="group-move-btn" onclick="moveGroup('${section}', ${groupIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
+                        <button class="group-ai-btn" onclick="aiBreakdownProject('${section}', ${groupIndex})" title="AI: Break down project" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); color: var(--text-primary); cursor: pointer; padding: 6px 10px; border-radius: 8px; font-size: 14px; transition: all 0.3s ease;">✨</button>
                         <button class="group-delete-btn" onclick="deleteGroup('${section}', ${groupIndex})" title="Delete project">🗑️</button>
                     </div>
                 </div>
@@ -184,6 +187,7 @@ function renderTask(section, groupIndex, taskIndex, task) {
                 ` : ''}
             </div>
             <div class="task-actions">
+                <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
                 <button class="move-btn" onclick="moveTask('${section}', ${groupIndex}, ${taskIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
                 <button class="delete-btn" onclick="deleteTask('${section}', ${groupIndex}, ${taskIndex})" title="Delete task">🗑️</button>
@@ -538,6 +542,194 @@ document.addEventListener('keydown', function(e) {
         document.getElementById('overlay').classList.remove('active');
     }
 });
+
+// OpenAI API Key Management
+window.saveOpenAIKey = function() {
+    const apiKeyInput = document.getElementById('openaiApiKey');
+    settings.openaiApiKey = apiKeyInput.value.trim();
+    saveData();
+    alert('✓ OpenAI API key saved!');
+}
+
+function loadOpenAIKey() {
+    const apiKeyInput = document.getElementById('openaiApiKey');
+    if (apiKeyInput && settings.openaiApiKey) {
+        apiKeyInput.value = settings.openaiApiKey;
+    }
+}
+
+// AI Assistant Functions
+async function callOpenAI(systemPrompt, userPrompt) {
+    if (!settings.openaiApiKey) {
+        alert('⚠️ Please add your OpenAI API key in Settings first!');
+        return null;
+    }
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${settings.openaiApiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'OpenAI API request failed');
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content;
+    } catch (error) {
+        alert(`❌ AI Error: ${error.message}`);
+        return null;
+    }
+}
+
+// Show AI menu for a task
+window.showAIMenu = function(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    const choice = prompt(
+        `AI Assistant for: "${task.title}"\n\n` +
+        `Choose an action:\n` +
+        `1 - Break down into subtasks\n` +
+        `2 - Rephrase as action-based\n\n` +
+        `Enter 1 or 2:`
+    );
+
+    if (choice === '1') {
+        aiBreakdownTask(section, groupIndex, taskIndex);
+    } else if (choice === '2') {
+        aiRephraseTask(section, groupIndex, taskIndex);
+    }
+}
+
+// AI Breakdown: Break task into subtasks
+async function aiBreakdownTask(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    const systemPrompt = `You are a task management assistant. Break down tasks into 3-5 clear, actionable subtasks. Return ONLY a JSON array of strings, no other text. Example: ["Subtask 1", "Subtask 2", "Subtask 3"]`;
+
+    const userPrompt = `Break down this task into subtasks:\n"${task.title}"`;
+
+    alert('🤖 AI is thinking...');
+
+    const response = await callOpenAI(systemPrompt, userPrompt);
+    if (!response) return;
+
+    try {
+        const subtasks = JSON.parse(response);
+
+        // Show preview to user
+        const preview = subtasks.map((s, i) => `${i + 1}. ${s}`).join('\n');
+        const userInput = prompt(
+            `AI suggests these subtasks:\n\n${preview}\n\n` +
+            `Edit if needed (one per line), or click OK to apply:`
+            , preview
+        );
+
+        if (userInput === null) return; // Cancelled
+
+        // Parse user's final input
+        const finalSubtasks = userInput.trim().split('\n')
+            .map(line => line.replace(/^\d+\.\s*/, '').trim())
+            .filter(line => line.length > 0)
+            .map(title => ({ title, completed: false }));
+
+        if (finalSubtasks.length > 0) {
+            task.subtasks = finalSubtasks;
+            saveData();
+            renderTasks();
+            alert('✅ Subtasks added!');
+        }
+    } catch (error) {
+        alert('❌ Error parsing AI response. Please try again.');
+    }
+}
+
+// AI Rephrase: Make task more action-oriented
+async function aiRephraseTask(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    const systemPrompt = `You are a productivity coach. Rephrase tasks to be action-oriented, starting with strong verbs. Make them clear, specific, and motivating. Return ONLY the rephrased task text, no quotes or extra text.`;
+
+    const userPrompt = `Rephrase this task to be more action-oriented:\n"${task.title}"`;
+
+    alert('🤖 AI is thinking...');
+
+    const response = await callOpenAI(systemPrompt, userPrompt);
+    if (!response) return;
+
+    // Show preview to user
+    const userInput = prompt(
+        `AI suggests:\n\n"${response}"\n\n` +
+        `Edit if needed, or click OK to apply:`
+        , response
+    );
+
+    if (userInput === null) return; // Cancelled
+    if (userInput.trim()) {
+        task.title = userInput.trim();
+        saveData();
+        renderTasks();
+        alert('✅ Task rephrased!');
+    }
+}
+
+// AI Breakdown Project: Break project into tasks
+window.aiBreakdownProject = async function(section, groupIndex) {
+    const group = taskData[section][groupIndex];
+
+    const systemPrompt = `You are a project management assistant. Break down projects into 5-8 clear, actionable tasks. Return ONLY a JSON array of strings, no other text. Example: ["Task 1", "Task 2", "Task 3"]`;
+
+    const userPrompt = `Break down this project into tasks:\n"${group.groupName}"`;
+
+    alert('🤖 AI is thinking...');
+
+    const response = await callOpenAI(systemPrompt, userPrompt);
+    if (!response) return;
+
+    try {
+        const tasks = JSON.parse(response);
+
+        // Show preview to user
+        const preview = tasks.map((t, i) => `${i + 1}. ${t}`).join('\n');
+        const userInput = prompt(
+            `AI suggests these tasks for "${group.groupName}":\n\n${preview}\n\n` +
+            `Edit if needed (one per line), or click OK to apply:`
+            , preview
+        );
+
+        if (userInput === null) return; // Cancelled
+
+        // Parse user's final input
+        const finalTasks = userInput.trim().split('\n')
+            .map(line => line.replace(/^\d+\.\s*/, '').trim())
+            .filter(line => line.length > 0)
+            .map(title => ({ title, completed: false }));
+
+        if (finalTasks.length > 0) {
+            // Add tasks to the project
+            group.tasks.push(...finalTasks);
+            saveData();
+            renderTasks();
+            updateStats();
+            updateProgress();
+            alert('✅ Tasks added to project!');
+        }
+    } catch (error) {
+        alert('❌ Error parsing AI response. Please try again.');
+    }
+}
 
 // Initialize on load
 init();
