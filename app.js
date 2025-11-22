@@ -146,31 +146,49 @@ window.submitCustomModal = submitCustomModal;
 
 // Helper function to extract JSON from AI response
 function extractJSON(response) {
+    // Clean the response
+    let cleaned = response.trim();
+
     // Try direct parse first
     try {
-        return JSON.parse(response);
+        return JSON.parse(cleaned);
     } catch (e) {
         // Look for JSON in markdown code blocks
-        const codeBlockMatch = response.match(/```(?:json)?\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/);
+        const codeBlockMatch = cleaned.match(/```(?:json)?\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/);
         if (codeBlockMatch) {
             try {
-                return JSON.parse(codeBlockMatch[1]);
+                return JSON.parse(codeBlockMatch[1].trim());
             } catch (e2) {
                 // Continue to next attempt
             }
         }
 
-        // Look for JSON array or object anywhere in the response
-        const jsonMatch = response.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-        if (jsonMatch) {
-            try {
-                return JSON.parse(jsonMatch[1]);
-            } catch (e3) {
-                // Continue to next attempt
+        // Look for JSON array - be greedy and get the largest valid array
+        const arrayMatches = cleaned.match(/\[[\s\S]*\]/g);
+        if (arrayMatches) {
+            // Try each match from longest to shortest
+            for (const match of arrayMatches.sort((a, b) => b.length - a.length)) {
+                try {
+                    return JSON.parse(match.trim());
+                } catch (e) {
+                    continue;
+                }
             }
         }
 
-        throw new Error('Could not extract valid JSON from response');
+        // Look for JSON object
+        const objectMatches = cleaned.match(/\{[\s\S]*\}/g);
+        if (objectMatches) {
+            for (const match of objectMatches.sort((a, b) => b.length - a.length)) {
+                try {
+                    return JSON.parse(match.trim());
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+
+        throw new Error('Could not extract valid JSON from response. Check console for raw response.');
     }
 }
 
@@ -1173,6 +1191,8 @@ async function aiADHDBreakdown(section, groupIndex, taskIndex) {
 - Include energy level (low/medium/high) and time estimate
 - Provide ADHD-specific tips for each step
 
+CRITICAL: Return ONLY a valid JSON array, nothing else. No markdown, no explanations, no text before or after.
+
 Return a JSON array of objects with this structure:
 [{
   "step": "Action step description",
@@ -1181,7 +1201,7 @@ Return a JSON array of objects with this structure:
   "adhdTip": "Helpful ADHD-specific tip"
 }]
 
-Example:
+Example response (return exactly in this format):
 [{
   "step": "Open document and write one sentence",
   "energy": "low",
@@ -1257,6 +1277,8 @@ async function aiFuzzyBreakdown(section, groupIndex, taskIndex) {
 
     const systemPrompt = `You are an ADHD task coach specializing in breaking down vague, overwhelming tasks. Based on the user's answers, generate 4-6 concrete, actionable tasks.
 
+CRITICAL: Return ONLY a valid JSON array, nothing else. No markdown, no explanations, no text before or after.
+
 For each task, include:
 - Task type (communication, research, decision, cleanup, action)
 - Energy level (low/medium/high)
@@ -1264,7 +1286,7 @@ For each task, include:
 - Emotional weight (light/moderate/heavy)
 - Dependencies
 
-Return JSON:
+Return JSON in exactly this format:
 [{
   "task": "Specific action step",
   "type": "communication|research|decision|cleanup|action",
@@ -1325,7 +1347,12 @@ Generate actionable tasks that address the blockers first and build momentum.`;
 async function aiBreakdownTask(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
 
-    const systemPrompt = `You are a task management assistant. Break down tasks into 3-5 clear, actionable subtasks. Return ONLY a JSON array of strings, no other text. Example: ["Subtask 1", "Subtask 2", "Subtask 3"]`;
+    const systemPrompt = `You are a task management assistant. Break down tasks into 3-5 clear, actionable subtasks.
+
+CRITICAL: Return ONLY a valid JSON array of strings, nothing else. No markdown, no explanations, no text before or after.
+
+Example response (return exactly in this format):
+["Subtask 1", "Subtask 2", "Subtask 3"]`;
 
     const userPrompt = `Break down this task into subtasks:\n"${task.title}"`;
 
@@ -1429,7 +1456,12 @@ Return ONLY the rephrased task text, no quotes or extra text.`;
 window.aiBreakdownProject = async function(section, groupIndex) {
     const group = taskData[section][groupIndex];
 
-    const systemPrompt = `You are a project management assistant. Break down projects into 5-8 clear, actionable tasks. Return ONLY a JSON array of strings, no other text. Example: ["Task 1", "Task 2", "Task 3"]`;
+    const systemPrompt = `You are a project management assistant. Break down projects into 5-8 clear, actionable tasks.
+
+CRITICAL: Return ONLY a valid JSON array of strings, nothing else. No markdown, no explanations, no text before or after.
+
+Example response (return exactly in this format):
+["Task 1", "Task 2", "Task 3"]`;
 
     const userPrompt = `Break down this project into tasks:\n"${group.groupName}"`;
 
