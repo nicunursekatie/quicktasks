@@ -1690,11 +1690,13 @@
             <div class="setting-label" style="margin-bottom: 8px;">AI Provider ✨</div>
             <select id="aiProvider" onchange="saveAIProvider()"
                     style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; font-size: 14px; cursor: pointer;">
-                <option value="gemini">Google Gemini 2.0 Flash (Recommended)</option>
-                <option value="openai">OpenAI (Requires Backend - Not Working)</option>
+                <option value="gemini">Google Gemini 2.0 Flash (Recommended - Free)</option>
+                <option value="groq">Groq (Llama 3.3 70B - Fast & Free)</option>
+                <option value="anthropic">Anthropic Claude (Premium)</option>
+                <option value="openai">OpenAI (CORS Issues - Use at Own Risk)</option>
             </select>
             <div style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 6px; line-height: 1.4;">
-                ℹ️ Gemini works directly from browser. OpenAI requires a backend server due to CORS restrictions.
+                ℹ️ Gemini & Groq work directly from browser with free tiers!
             </div>
         </div>
 
@@ -1712,7 +1714,7 @@
             <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Note: Won't work from browser (CORS issue)</div>
         </div>
 
-        <div class="setting-item" style="border-bottom: none; display: block;">
+        <div class="setting-item" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2); display: block;">
             <div class="setting-label" style="margin-bottom: 8px;">Gemini API Key ✨</div>
             <div style="display: flex; gap: 8px;">
                 <input type="password" id="geminiApiKey" placeholder="AIza..."
@@ -1723,7 +1725,35 @@
                     Test
                 </button>
             </div>
-            <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Stored locally on your device only</div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Get free key: aistudio.google.com/apikey</div>
+        </div>
+
+        <div class="setting-item" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2); display: block;">
+            <div class="setting-label" style="margin-bottom: 8px;">Groq API Key (Free) 🚀</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="password" id="groqApiKey" placeholder="gsk_..."
+                       style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: monospace;"
+                       onchange="saveAPIKeys()">
+                <button onclick="testGroqKey()"
+                        style="padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                    Test
+                </button>
+            </div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Get free key: console.groq.com</div>
+        </div>
+
+        <div class="setting-item" style="border-bottom: none; display: block;">
+            <div class="setting-label" style="margin-bottom: 8px;">Anthropic API Key</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="password" id="anthropicApiKey" placeholder="sk-ant-..."
+                       style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: monospace;"
+                       onchange="saveAPIKeys()">
+                <button onclick="testAnthropicKey()"
+                        style="padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                    Test
+                </button>
+            </div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">Get key: console.anthropic.com</div>
         </div>
 
         <div class="setting-item" style="border: none; padding-top: 24px;">

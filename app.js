@@ -87,6 +87,8 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
     showCompleted: true,
     openaiApiKey: '',
     geminiApiKey: '',
+    groqApiKey: '',
+    anthropicApiKey: '',
     aiProvider: 'gemini'
 };
 
@@ -555,9 +557,13 @@ window.saveAIProvider = function() {
 window.saveAPIKeys = function() {
     const openaiInput = document.getElementById('openaiApiKey');
     const geminiInput = document.getElementById('geminiApiKey');
+    const groqInput = document.getElementById('groqApiKey');
+    const anthropicInput = document.getElementById('anthropicApiKey');
 
     if (openaiInput) settings.openaiApiKey = openaiInput.value.trim();
     if (geminiInput) settings.geminiApiKey = geminiInput.value.trim();
+    if (groqInput) settings.groqApiKey = groqInput.value.trim();
+    if (anthropicInput) settings.anthropicApiKey = anthropicInput.value.trim();
 
     saveData();
     alert('✓ API key saved!');
@@ -566,6 +572,8 @@ window.saveAPIKeys = function() {
 function loadOpenAIKey() {
     const openaiInput = document.getElementById('openaiApiKey');
     const geminiInput = document.getElementById('geminiApiKey');
+    const groqInput = document.getElementById('groqApiKey');
+    const anthropicInput = document.getElementById('anthropicApiKey');
     const providerSelect = document.getElementById('aiProvider');
 
     if (openaiInput && settings.openaiApiKey) {
@@ -573,6 +581,12 @@ function loadOpenAIKey() {
     }
     if (geminiInput && settings.geminiApiKey) {
         geminiInput.value = settings.geminiApiKey;
+    }
+    if (groqInput && settings.groqApiKey) {
+        groqInput.value = settings.groqApiKey;
+    }
+    if (anthropicInput && settings.anthropicApiKey) {
+        anthropicInput.value = settings.anthropicApiKey;
     }
     if (providerSelect) {
         providerSelect.value = settings.aiProvider || 'gemini';
@@ -650,14 +664,90 @@ window.testGeminiKey = async function() {
     }
 }
 
+window.testGroqKey = async function() {
+    const apiKey = document.getElementById('groqApiKey').value.trim();
+    if (!apiKey) {
+        alert('⚠️ Please enter a Groq API key first!');
+        return;
+    }
+
+    alert('🧪 Testing Groq API key...');
+
+    try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: 'Say "API key works!"' }],
+                max_tokens: 10
+            })
+        });
+
+        if (response.ok) {
+            alert('✅ Groq API Key is valid and working!');
+        } else {
+            const error = await response.json();
+            alert(`❌ Groq API Key Error: ${error.error?.message || 'Invalid key'}`);
+        }
+    } catch (error) {
+        alert(`❌ Test Failed: ${error.message}`);
+    }
+}
+
+window.testAnthropicKey = async function() {
+    const apiKey = document.getElementById('anthropicApiKey').value.trim();
+    if (!apiKey) {
+        alert('⚠️ Please enter an Anthropic API key first!');
+        return;
+    }
+
+    alert('🧪 Testing Anthropic API key...');
+
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 10,
+                messages: [{ role: 'user', content: 'Say "API key works!"' }]
+            })
+        });
+
+        if (response.ok) {
+            alert('✅ Anthropic API Key is valid and working!');
+        } else {
+            const error = await response.json();
+            alert(`❌ Anthropic API Key Error: ${error.error?.message || 'Invalid key'}`);
+        }
+    } catch (error) {
+        alert(`❌ Test Failed: ${error.message}`);
+    }
+}
+
 // AI Assistant Functions
 async function callAI(systemPrompt, userPrompt) {
-    const provider = settings.aiProvider || 'openai';
+    const provider = settings.aiProvider || 'gemini';
 
-    if (provider === 'openai') {
-        return await callOpenAI(systemPrompt, userPrompt);
-    } else {
-        return await callGemini(systemPrompt, userPrompt);
+    switch (provider) {
+        case 'openai':
+            return await callOpenAI(systemPrompt, userPrompt);
+        case 'gemini':
+            return await callGemini(systemPrompt, userPrompt);
+        case 'groq':
+            return await callGroq(systemPrompt, userPrompt);
+        case 'anthropic':
+            return await callAnthropic(systemPrompt, userPrompt);
+        default:
+            return await callGemini(systemPrompt, userPrompt);
     }
 }
 
@@ -737,25 +827,280 @@ async function callGemini(systemPrompt, userPrompt) {
     }
 }
 
+async function callGroq(systemPrompt, userPrompt) {
+    if (!settings.groqApiKey) {
+        alert('⚠️ Please add your Groq API key in Settings first!');
+        return null;
+    }
+
+    try {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${settings.groqApiKey}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1000
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Groq API request failed');
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content;
+    } catch (error) {
+        alert(`❌ Groq Error: ${error.message}`);
+        return null;
+    }
+}
+
+async function callAnthropic(systemPrompt, userPrompt) {
+    if (!settings.anthropicApiKey) {
+        alert('⚠️ Please add your Anthropic API key in Settings first!');
+        return null;
+    }
+
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': settings.anthropicApiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 1000,
+                system: systemPrompt,
+                messages: [
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Anthropic API request failed');
+        }
+
+        const data = await response.json();
+        return data.content[0].text;
+    } catch (error) {
+        alert(`❌ Anthropic Error: ${error.message}`);
+        return null;
+    }
+}
+
 // Show AI menu for a task
 window.showAIMenu = function(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
     const choice = prompt(
         `AI Assistant for: "${task.title}"\n\n` +
         `Choose an action:\n` +
-        `1 - Break down into subtasks\n` +
-        `2 - Rephrase as action-based\n\n` +
-        `Enter 1 or 2:`
+        `1 - ADHD-Friendly Breakdown (with energy levels & tips)\n` +
+        `2 - Fuzzy Breakdown (for overwhelming/vague tasks)\n` +
+        `3 - Simple Breakdown (quick subtasks)\n` +
+        `4 - Rephrase as action-based\n\n` +
+        `Enter 1-4:`
     );
 
     if (choice === '1') {
-        aiBreakdownTask(section, groupIndex, taskIndex);
+        aiADHDBreakdown(section, groupIndex, taskIndex);
     } else if (choice === '2') {
+        aiFuzzyBreakdown(section, groupIndex, taskIndex);
+    } else if (choice === '3') {
+        aiBreakdownTask(section, groupIndex, taskIndex);
+    } else if (choice === '4') {
         aiRephraseTask(section, groupIndex, taskIndex);
     }
 }
 
-// AI Breakdown: Break task into subtasks
+// ADHD-Friendly Breakdown with energy levels and tips
+async function aiADHDBreakdown(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    // Gather context
+    const blockers = prompt(
+        `Task: "${task.title}"\n\n` +
+        `What's blocking you from starting?\n` +
+        `(e.g., "not sure where to begin", "need to find files", "too overwhelming")\n\n` +
+        `(Optional - click OK to skip)`
+    );
+    if (blockers === null) return;
+
+    const currentState = prompt(
+        `What's your current state/context?\n` +
+        `(e.g., "have all materials ready", "just starting", "halfway done")\n\n` +
+        `(Optional - click OK to skip)`
+    );
+    if (currentState === null) return;
+
+    const systemPrompt = `You are an ADHD-specialized task coach. Break down tasks into ADHD-friendly steps that:
+- Start with the ABSOLUTE EASIEST step to build momentum
+- Address blockers first (not prep work)
+- Minimize decision fatigue
+- Are immediately actionable
+- Include energy level (low/medium/high) and time estimate
+- Provide ADHD-specific tips for each step
+
+Return a JSON array of objects with this structure:
+[{
+  "step": "Action step description",
+  "energy": "low|medium|high",
+  "timeEstimate": "5-10 min",
+  "adhdTip": "Helpful ADHD-specific tip"
+}]
+
+Example:
+[{
+  "step": "Open document and write one sentence",
+  "energy": "low",
+  "timeEstimate": "2 min",
+  "adhdTip": "Start with literally anything - even 'I am writing this' counts"
+}]`;
+
+    const contextParts = [];
+    if (blockers && blockers.trim()) contextParts.push(`Blocker: ${blockers.trim()}`);
+    if (currentState && currentState.trim()) contextParts.push(`Current state: ${currentState.trim()}`);
+    const context = contextParts.length > 0 ? `\n\n${contextParts.join('\n')}` : '';
+
+    const userPrompt = `Break down this task into ADHD-friendly steps:\n"${task.title}"${context}`;
+
+    alert('🤖 AI is thinking...');
+
+    const response = await callAI(systemPrompt, userPrompt);
+    if (!response) return;
+
+    try {
+        const steps = JSON.parse(response);
+
+        // Format preview with energy levels and tips
+        const preview = steps.map((s, i) =>
+            `${i + 1}. [${s.energy?.toUpperCase()}] ${s.step}\n   ⏱ ${s.timeEstimate}\n   💡 ${s.adhdTip}`
+        ).join('\n\n');
+
+        const userInput = prompt(
+            `AI suggests these ADHD-friendly steps:\n\n${preview}\n\n` +
+            `Edit if needed, or click OK to apply:`
+        );
+
+        if (userInput === null) return;
+
+        // Convert to subtasks (simplified for now)
+        const finalSubtasks = steps.map(s => ({
+            title: `[${s.energy}] ${s.step} (${s.timeEstimate})`,
+            completed: false
+        }));
+
+        if (finalSubtasks.length > 0) {
+            task.subtasks = finalSubtasks;
+            saveData();
+            renderTasks();
+            alert('✅ ADHD-friendly breakdown added!');
+        }
+    } catch (error) {
+        alert('❌ Error parsing AI response. Using fallback pattern...');
+        // Fallback to simple breakdown
+        aiBreakdownTask(section, groupIndex, taskIndex);
+    }
+}
+
+// Fuzzy Breakdown for vague/overwhelming tasks
+async function aiFuzzyBreakdown(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    // 5-question flow
+    const q1 = prompt(`Task: "${task.title}"\n\nQuestion 1/5: What's the ideal outcome? What does "done" look like?`);
+    if (q1 === null) return;
+
+    const q2 = prompt(`Question 2/5: What's blocking you or making this feel overwhelming?`);
+    if (q2 === null) return;
+
+    const q3 = prompt(`Question 3/5: What information or resources do you already have?`);
+    if (q3 === null) return;
+
+    const q4 = prompt(`Question 4/5: Who else is involved or needs to be consulted?`);
+    if (q4 === null) return;
+
+    const q5 = prompt(`Question 5/5: How urgent is this? Any specific deadlines?`);
+    if (q5 === null) return;
+
+    const systemPrompt = `You are an ADHD task coach specializing in breaking down vague, overwhelming tasks. Based on the user's answers, generate 4-6 concrete, actionable tasks.
+
+For each task, include:
+- Task type (communication, research, decision, cleanup, action)
+- Energy level (low/medium/high)
+- Time estimate
+- Emotional weight (light/moderate/heavy)
+- Dependencies
+
+Return JSON:
+[{
+  "task": "Specific action step",
+  "type": "communication|research|decision|cleanup|action",
+  "energy": "low|medium|high",
+  "timeEstimate": "10 min",
+  "emotionalWeight": "light|moderate|heavy",
+  "dependency": "depends on..." or null
+}]`;
+
+    const userPrompt = `Original task: "${task.title}"
+
+Outcome: ${q1}
+Blockers: ${q2}
+Existing info: ${q3}
+People involved: ${q4}
+Urgency: ${q5}
+
+Generate actionable tasks that address the blockers first and build momentum.`;
+
+    alert('🤖 AI is analyzing your answers...');
+
+    const response = await callAI(systemPrompt, userPrompt);
+    if (!response) return;
+
+    try {
+        const tasks = JSON.parse(response);
+
+        const preview = tasks.map((t, i) =>
+            `${i + 1}. [${t.type}] ${t.task}\n   Energy: ${t.energy} | Time: ${t.timeEstimate} | Weight: ${t.emotionalWeight}`
+        ).join('\n\n');
+
+        const userInput = prompt(
+            `Based on your answers, AI suggests:\n\n${preview}\n\n` +
+            `Edit if needed, or click OK to apply:`
+        );
+
+        if (userInput === null) return;
+
+        const finalSubtasks = tasks.map(t => ({
+            title: `[${t.type}] ${t.task} (${t.timeEstimate})`,
+            completed: false
+        }));
+
+        if (finalSubtasks.length > 0) {
+            task.subtasks = finalSubtasks;
+            saveData();
+            renderTasks();
+            alert('✅ Fuzzy breakdown complete!');
+        }
+    } catch (error) {
+        alert('❌ Error parsing AI response. Please try again.');
+    }
+}
+
+// AI Breakdown: Break task into subtasks (simple version)
 async function aiBreakdownTask(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
 
