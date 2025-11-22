@@ -85,7 +85,9 @@ let taskData = JSON.parse(localStorage.getItem('taskData')) || initialData;
 let settings = JSON.parse(localStorage.getItem('settings')) || {
     darkMode: false,
     showCompleted: true,
-    openaiApiKey: ''
+    openaiApiKey: '',
+    geminiApiKey: '',
+    aiProvider: 'openai'
 };
 
 let currentUser = null;
@@ -543,22 +545,70 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// OpenAI API Key Management
-window.saveOpenAIKey = function() {
-    const apiKeyInput = document.getElementById('openaiApiKey');
-    settings.openaiApiKey = apiKeyInput.value.trim();
+// AI Provider Management
+window.saveAIProvider = function() {
+    const providerSelect = document.getElementById('aiProvider');
+    settings.aiProvider = providerSelect.value;
     saveData();
-    alert('✓ OpenAI API key saved!');
+    updateAIKeyVisibility();
+}
+
+window.saveAPIKeys = function() {
+    const openaiInput = document.getElementById('openaiApiKey');
+    const geminiInput = document.getElementById('geminiApiKey');
+
+    if (openaiInput) settings.openaiApiKey = openaiInput.value.trim();
+    if (geminiInput) settings.geminiApiKey = geminiInput.value.trim();
+
+    saveData();
+    alert('✓ API key saved!');
 }
 
 function loadOpenAIKey() {
-    const apiKeyInput = document.getElementById('openaiApiKey');
-    if (apiKeyInput && settings.openaiApiKey) {
-        apiKeyInput.value = settings.openaiApiKey;
+    const openaiInput = document.getElementById('openaiApiKey');
+    const geminiInput = document.getElementById('geminiApiKey');
+    const providerSelect = document.getElementById('aiProvider');
+
+    if (openaiInput && settings.openaiApiKey) {
+        openaiInput.value = settings.openaiApiKey;
+    }
+    if (geminiInput && settings.geminiApiKey) {
+        geminiInput.value = settings.geminiApiKey;
+    }
+    if (providerSelect) {
+        providerSelect.value = settings.aiProvider || 'openai';
+    }
+
+    updateAIKeyVisibility();
+}
+
+function updateAIKeyVisibility() {
+    const openaiSection = document.getElementById('openaiKeySection');
+    const geminiSection = document.getElementById('geminiKeySection');
+    const provider = settings.aiProvider || 'openai';
+
+    if (openaiSection && geminiSection) {
+        if (provider === 'openai') {
+            openaiSection.style.display = 'block';
+            geminiSection.style.display = 'none';
+        } else {
+            openaiSection.style.display = 'none';
+            geminiSection.style.display = 'block';
+        }
     }
 }
 
 // AI Assistant Functions
+async function callAI(systemPrompt, userPrompt) {
+    const provider = settings.aiProvider || 'openai';
+
+    if (provider === 'openai') {
+        return await callOpenAI(systemPrompt, userPrompt);
+    } else {
+        return await callGemini(systemPrompt, userPrompt);
+    }
+}
+
 async function callOpenAI(systemPrompt, userPrompt) {
     if (!settings.openaiApiKey) {
         alert('⚠️ Please add your OpenAI API key in Settings first!');
@@ -590,7 +640,45 @@ async function callOpenAI(systemPrompt, userPrompt) {
         const data = await response.json();
         return data.choices[0].message.content;
     } catch (error) {
-        alert(`❌ AI Error: ${error.message}`);
+        alert(`❌ OpenAI Error: ${error.message}`);
+        return null;
+    }
+}
+
+async function callGemini(systemPrompt, userPrompt) {
+    if (!settings.geminiApiKey) {
+        alert('⚠️ Please add your Gemini API key in Settings first!');
+        return null;
+    }
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${settings.geminiApiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `${systemPrompt}\n\n${userPrompt}`
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 1000
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Gemini API request failed');
+        }
+
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+        alert(`❌ Gemini Error: ${error.message}`);
         return null;
     }
 }
@@ -623,7 +711,7 @@ async function aiBreakdownTask(section, groupIndex, taskIndex) {
 
     alert('🤖 AI is thinking...');
 
-    const response = await callOpenAI(systemPrompt, userPrompt);
+    const response = await callAI(systemPrompt, userPrompt);
     if (!response) return;
 
     try {
@@ -666,7 +754,7 @@ async function aiRephraseTask(section, groupIndex, taskIndex) {
 
     alert('🤖 AI is thinking...');
 
-    const response = await callOpenAI(systemPrompt, userPrompt);
+    const response = await callAI(systemPrompt, userPrompt);
     if (!response) return;
 
     // Show preview to user
@@ -695,7 +783,7 @@ window.aiBreakdownProject = async function(section, groupIndex) {
 
     alert('🤖 AI is thinking...');
 
-    const response = await callOpenAI(systemPrompt, userPrompt);
+    const response = await callAI(systemPrompt, userPrompt);
     if (!response) return;
 
     try {
