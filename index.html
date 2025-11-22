@@ -278,53 +278,10 @@
             z-index: 1;
         }
 
-        .tab-btn {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            color: var(--text-primary);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 8px 14px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            margin-bottom: 6px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .tab-btn:hover {
-            background: rgba(255, 255, 255, 0.25);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-        }
-
-        .tab-btn.active {
-            background: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 6px 25px rgba(0,0,0,0.3);
-            transform: scale(1.02);
-        }
-
-        .content-tabs {
+        .quick-links-section {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            margin-bottom: 12px;
-        }
-
-        .iframe-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        iframe {
-            width: 100%;
-            flex: 1;
-            min-height: 400px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            gap: 8px;
         }
 
         .date-stamp {
@@ -1183,15 +1140,16 @@
                 </div>
             </div>
 
-            <!-- Embedded Content -->
+            <!-- Quick Links -->
             <div class="embedded-section">
-                <div class="embedded-header">Quick View</div>
-                <div class="content-tabs">
-                    <button class="tab-btn active" onclick="switchTab(event, 'calendar')">Calendar</button>
-                    <button class="tab-btn" onclick="switchTab(event, 'platform')">TSP Platform</button>
-                </div>
-                <div class="iframe-container">
-                    <iframe id="contentFrame" src="https://calendar.google.com/calendar/u/0/r"></iframe>
+                <div class="embedded-header">Quick Links</div>
+                <div class="quick-links-section">
+                    <a href="https://calendar.google.com/calendar/u/0/r" target="_blank" class="resource-link">
+                        <span class="resource-title">📅 Google Calendar</span>
+                    </a>
+                    <a href="https://sandwich-project-platform-final-katielong2316.replit.app/" target="_blank" class="resource-link">
+                        <span class="resource-title">🚀 TSP Platform</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -1254,24 +1212,6 @@
         </div>
     </div>
 
-    <!-- Inline Functions -->
-    <script>
-        // Tab Switching for embedded content (needs to be available immediately for onclick)
-        function switchTab(event, tab) {
-            const frame = document.getElementById('contentFrame');
-            const buttons = document.querySelectorAll('.tab-btn');
-
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-
-            const urls = {
-                'calendar': 'https://calendar.google.com/calendar/u/0/r',
-                'platform': 'https://sandwich-project-platform-final-katielong2316.replit.app/'
-            };
-
-            frame.src = urls[tab];
-        }
-    </script>
 
     <!-- Firebase SDK -->
     <script type="module">
