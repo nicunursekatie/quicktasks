@@ -802,9 +802,22 @@ async function aiBreakdownTask(section, groupIndex, taskIndex) {
 async function aiRephraseTask(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
 
+    // Ask for additional context
+    const additionalContext = prompt(
+        `Task: "${task.title}"\n\n` +
+        `Is there any additional context I should know?\n\n` +
+        `(Optional - just click OK to skip, or add details about goals, constraints, deadlines, etc.)`
+    );
+
+    if (additionalContext === null) return; // Cancelled
+
+    const contextNote = additionalContext && additionalContext.trim()
+        ? `\n\nAdditional context: ${additionalContext.trim()}`
+        : '';
+
     const systemPrompt = `You are a productivity coach. Rephrase tasks to be action-oriented, starting with strong verbs. Make them clear, specific, and motivating. Return ONLY the rephrased task text, no quotes or extra text.`;
 
-    const userPrompt = `Rephrase this task to be more action-oriented:\n"${task.title}"`;
+    const userPrompt = `Rephrase this task to be more action-oriented:\n"${task.title}"${contextNote}`;
 
     alert('🤖 AI is thinking...');
 
