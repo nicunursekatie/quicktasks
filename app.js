@@ -2016,6 +2016,63 @@ window.updateFocusAlertInterval = function() {
     }
 }
 
+// Test function to trigger focus alert immediately (for testing)
+window.testFocusAlert = function() {
+    if (!settings.activeTask) {
+        alert('⚠️ No task is currently focused.\n\nPlease click the 🎯 button on a task first to enable focus mode.');
+        return;
+    }
+    
+    const { section, groupIndex, taskIndex } = settings.activeTask;
+    
+    // Verify task still exists
+    if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
+        alert('⚠️ The focused task no longer exists.');
+        settings.activeTask = null;
+        saveData();
+        return;
+    }
+    
+    // Show the alert immediately for testing
+    showFocusAlert();
+}
+
+// Test function to check focus mode status
+window.checkFocusStatus = function() {
+    if (!settings.activeTask) {
+        console.log('📊 Focus Status: No task is currently focused.');
+        alert('📊 Focus Status: No task is currently focused.');
+        return;
+    }
+    
+    const { section, groupIndex, taskIndex, alertInterval, websiteUrl } = settings.activeTask;
+    
+    // Verify task still exists
+    if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
+        console.log('⚠️ Focus Status: The focused task no longer exists.');
+        alert('⚠️ Focus Status: The focused task no longer exists.');
+        return;
+    }
+    
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    
+    let statusMsg = `📊 Focus Mode Status:\n\n`;
+    statusMsg += `Task: "${task.title}"\n`;
+    statusMsg += `Alert Interval: ${alertInterval} minutes\n`;
+    statusMsg += `Website: ${websiteUrl || 'None'}\n`;
+    statusMsg += `Timer Active: ${focusTimer ? 'Yes ✅' : 'No ❌'}\n\n`;
+    statusMsg += `To test the alert, open the console (F12) and type: testFocusAlert()`;
+    
+    console.log('Focus Status:', {
+        task: task.title,
+        interval: alertInterval + ' minutes',
+        website: websiteUrl || 'None',
+        timerActive: focusTimer !== null
+    });
+    
+    alert(statusMsg);
+}
+
 // Clear all data with double confirmation
 window.clearAllData = function() {
     const firstConfirm = confirm('⚠️ WARNING: This will permanently delete ALL your tasks and settings.\n\nAre you sure you want to continue?');
