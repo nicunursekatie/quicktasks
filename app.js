@@ -280,7 +280,10 @@ function renderTask(section, groupIndex, taskIndex, task) {
                    onclick="toggleTask('${section}', ${groupIndex}, ${taskIndex})"
                    title="Mark as ${task.completed ? 'incomplete' : 'complete'}">
             <div class="task-content" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
-                <div class="task-title">${escapeHtml(task.title)}</div>
+                <div class="task-title">
+                    ${escapeHtml(task.title)}
+                    ${task.dueDate ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">📅 ${task.dueDate}</span>` : ''}
+                </div>
                 ${task.subtasks ? `
                     <div class="subtasks">
                         ${task.subtasks.map((subtask, subIndex) => `
@@ -305,6 +308,101 @@ function renderTask(section, groupIndex, taskIndex, task) {
             </div>
         </div>
     `;
+}
+
+// New Task Modal
+window.showNewTaskModal = function() {
+    // Populate project dropdown
+    const select = document.getElementById('newTaskProject');
+    select.innerHTML = '<option value="">-- No project --</option>';
+
+    // Add Today projects
+    taskData.today.forEach((group, index) => {
+        const option = document.createElement('option');
+        option.value = `today-${index}`;
+        option.textContent = `⚡ ${group.groupName}`;
+        select.appendChild(option);
+    });
+
+    // Add Long-term projects
+    taskData.longterm.forEach((group, index) => {
+        const option = document.createElement('option');
+        option.value = `longterm-${index}`;
+        option.textContent = `📅 ${group.groupName}`;
+        select.appendChild(option);
+    });
+
+    // Reset form
+    document.getElementById('newTaskTitle').value = '';
+    document.querySelector('input[name="newTaskSection"][value="today"]').checked = true;
+    select.value = '';
+    document.getElementById('newTaskDueDate').value = '';
+
+    // Show modal
+    document.getElementById('newTaskModal').classList.add('active');
+    const input = document.getElementById('newTaskTitle');
+    input.focus();
+
+    // Handle Enter key
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            submitNewTask();
+            input.removeEventListener('keydown', handleKeyDown);
+        } else if (e.key === 'Escape') {
+            closeNewTaskModal();
+            input.removeEventListener('keydown', handleKeyDown);
+        }
+    };
+    input.addEventListener('keydown', handleKeyDown);
+}
+
+window.closeNewTaskModal = function() {
+    document.getElementById('newTaskModal').classList.remove('active');
+}
+
+window.submitNewTask = function() {
+    const title = document.getElementById('newTaskTitle').value.trim();
+    if (!title) {
+        alert('Please enter a task title');
+        return;
+    }
+
+    const section = document.querySelector('input[name="newTaskSection"]:checked').value;
+    const projectValue = document.getElementById('newTaskProject').value;
+    const dueDate = document.getElementById('newTaskDueDate').value;
+
+    const newTask = {
+        title: title,
+        completed: false
+    };
+
+    if (dueDate) {
+        newTask.dueDate = dueDate;
+    }
+
+    if (projectValue) {
+        // Add to existing project
+        const [projectSection, projectIndex] = projectValue.split('-');
+        taskData[projectSection][parseInt(projectIndex)].tasks.push(newTask);
+    } else {
+        // Create new project with this task
+        const projectName = prompt('Enter project name for this task:', 'New Project');
+        if (!projectName) {
+            closeNewTaskModal();
+            return;
+        }
+
+        taskData[section].push({
+            groupName: projectName.trim(),
+            tasks: [newTask]
+        });
+    }
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+    closeNewTaskModal();
 }
 
 // Toggle task completion
@@ -357,20 +455,13 @@ window.deleteGroup = function(section, groupIndex) {
     }
 }
 
-// Add task to specific group
+// Add task to specific group (uses the new task modal)
 window.addTaskToGroup = function(section, groupIndex) {
-    const taskTitle = prompt('Enter new task:');
+    showNewTaskModal();
 
-    if (taskTitle !== null && taskTitle.trim() !== '') {
-        taskData[section][groupIndex].tasks.push({
-            title: taskTitle.trim(),
-            completed: false
-        });
-        saveData();
-        renderTasks();
-        updateStats();
-        updateProgress();
-    }
+    // Pre-select the section and project
+    document.querySelector(`input[name="newTaskSection"][value="${section}"]`).checked = true;
+    document.getElementById('newTaskProject').value = `${section}-${groupIndex}`;
 }
 
 // Task Edit Modal State
@@ -551,19 +642,51 @@ window.deleteSubtask = function(section, groupIndex, taskIndex, subIndex) {
 }
 
 // Create new group/project
-window.createNewGroup = function(section) {
-    const groupName = prompt('Enter new project name:');
+// New Project Modal
+let newProjectSection = null;
 
-    if (groupName !== null && groupName.trim() !== '') {
-        taskData[section].push({
-            groupName: groupName.trim(),
-            tasks: []
-        });
-        saveData();
-        renderTasks();
-        updateStats();
-        updateProgress();
+window.createNewGroup = function(section) {
+    newProjectSection = section;
+    document.getElementById('newProjectName').value = '';
+    document.getElementById('newProjectModal').classList.add('active');
+    document.getElementById('newProjectName').focus();
+
+    // Handle Enter key
+    const input = document.getElementById('newProjectName');
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            submitNewProject();
+            input.removeEventListener('keydown', handleKeyDown);
+        } else if (e.key === 'Escape') {
+            closeNewProjectModal();
+            input.removeEventListener('keydown', handleKeyDown);
+        }
+    };
+    input.addEventListener('keydown', handleKeyDown);
+}
+
+window.closeNewProjectModal = function() {
+    document.getElementById('newProjectModal').classList.remove('active');
+    newProjectSection = null;
+}
+
+window.submitNewProject = function() {
+    const name = document.getElementById('newProjectName').value.trim();
+    if (!name) {
+        alert('Please enter a project name');
+        return;
     }
+
+    taskData[newProjectSection].push({
+        groupName: name,
+        tasks: []
+    });
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+    closeNewProjectModal();
 }
 
 // Move group/project to other section

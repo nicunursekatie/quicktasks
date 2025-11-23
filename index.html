@@ -1669,6 +1669,7 @@
             <a href="https://sandwich-project-platform-final-katielong2316.replit.app/" target="_blank" class="quick-link">TSP Platform</a>
         </div>
         <div class="controls">
+            <button class="icon-btn" onclick="showNewTaskModal()" title="New Task" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 20px;">➕</button>
             <button class="icon-btn" onclick="toggleStats()" title="Statistics">📊</button>
             <button class="icon-btn" onclick="toggleSettings()" title="Settings">⚙️</button>
             <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
@@ -1925,6 +1926,75 @@
             <div class="custom-modal-footer">
                 <button class="modal-btn modal-btn-cancel" onclick="closeCustomModal()">Cancel</button>
                 <button class="modal-btn modal-btn-submit" onclick="submitCustomModal()">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Task Modal -->
+    <div id="newTaskModal" class="custom-modal">
+        <div class="custom-modal-content" style="max-width: 500px;">
+            <div class="custom-modal-header">
+                <h3>➕ New Task</h3>
+                <button class="modal-close-btn" onclick="closeNewTaskModal()">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Task Title</label>
+                    <input type="text" id="newTaskTitle"
+                           placeholder="What needs to be done?"
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Add to:</label>
+                    <div style="display: flex; gap: 12px;">
+                        <label style="flex: 1; cursor: pointer;">
+                            <input type="radio" name="newTaskSection" value="today" checked style="margin-right: 8px;">
+                            <span style="font-weight: 500;">⚡ Today</span>
+                        </label>
+                        <label style="flex: 1; cursor: pointer;">
+                            <input type="radio" name="newTaskSection" value="longterm" style="margin-right: 8px;">
+                            <span style="font-weight: 500;">📅 Long-term</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Project (optional)</label>
+                    <select id="newTaskProject"
+                            style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <option value="">-- No project --</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Due Date (optional)</label>
+                    <input type="date" id="newTaskDueDate"
+                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeNewTaskModal()">Cancel</button>
+                <button class="modal-btn modal-btn-submit" onclick="submitNewTask()">Create Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Project Modal -->
+    <div id="newProjectModal" class="custom-modal">
+        <div class="custom-modal-content" style="max-width: 400px;">
+            <div class="custom-modal-header">
+                <h3>📁 New Project</h3>
+                <button class="modal-close-btn" onclick="closeNewProjectModal()">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Project Name</label>
+                    <input type="text" id="newProjectName"
+                           placeholder="Enter project name..."
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit;">
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeNewProjectModal()">Cancel</button>
+                <button class="modal-btn modal-btn-submit" onclick="submitNewProject()">Create Project</button>
             </div>
         </div>
     </div>
