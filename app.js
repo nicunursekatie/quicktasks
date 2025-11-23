@@ -81,7 +81,28 @@ const initialData = {
 };
 
 // Load data from localStorage or use initial data
-let taskData = JSON.parse(localStorage.getItem('taskData')) || initialData;
+function loadTaskData() {
+    try {
+        const savedData = localStorage.getItem('taskData');
+        if (savedData) {
+            return JSON.parse(savedData);
+        }
+    } catch (error) {
+        console.error('Error loading task data:', error);
+        // Try to restore from backup
+        const backups = JSON.parse(localStorage.getItem('taskData_backups') || '[]');
+        if (backups.length > 0) {
+            console.warn('Task data corrupted, attempting to restore from backup...');
+            const latestBackup = backups[backups.length - 1];
+            if (latestBackup && latestBackup.taskData) {
+                return latestBackup.taskData;
+            }
+        }
+    }
+    return initialData;
+}
+
+let taskData = loadTaskData();
 let archivedTasks = JSON.parse(localStorage.getItem('archivedTasks')) || [];
 let settings = JSON.parse(localStorage.getItem('settings')) || {
     darkMode: false,
@@ -90,11 +111,17 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
     geminiApiKey: '',
     groqApiKey: '',
     anthropicApiKey: '',
-    aiProvider: 'gemini'
+    aiProvider: 'gemini',
+    focusAlertInterval: 10, // minutes: 5, 10, or 15
+    activeTask: null // { section, groupIndex, taskIndex }
 };
 
 let currentUser = null;
 let unsubscribe = null;
+
+// Focus mode timer
+let focusTimer = null;
+let focusAlertInterval = null;
 
 // Custom Modal System
 let modalResolve = null;
@@ -295,6 +322,7 @@ function init() {
     updateStats();
     updateProgress();
     loadOpenAIKey();
+    initFocusMode();
 }
 
 // Update date stamp
@@ -556,28 +584,65 @@ function handleGroupDrop(e) {
     const dropSection = dropTarget.dataset.section;
     const dropGroupIndex = parseInt(dropTarget.dataset.groupIndex);
     
+    // Validate indices
+    if (isNaN(draggedGroupIndex) || isNaN(dropGroupIndex)) {
+        console.error('Invalid group indices:', { draggedGroupIndex, dropGroupIndex });
+        return false;
+    }
+    
+    // Validate data exists
+    if (!taskData[draggedSection] || draggedGroupIndex >= taskData[draggedSection].length) {
+        console.error('Invalid drag source:', { draggedSection, draggedGroupIndex });
+        return false;
+    }
+    
+    if (!taskData[dropSection] || dropGroupIndex >= taskData[dropSection].length) {
+        console.error('Invalid drop target:', { dropSection, dropGroupIndex });
+        return false;
+    }
+    
     if (draggedSection === dropSection && draggedGroupIndex !== dropGroupIndex) {
-        // Reorder groups within same section
-        const draggedGroup = taskData[draggedSection][draggedGroupIndex];
-        
-        // Remove from original position
-        taskData[draggedSection].splice(draggedGroupIndex, 1);
-        
-        // Calculate new index (adjust if dragging down)
-        let newIndex = dropGroupIndex;
-        if (draggedGroupIndex < dropGroupIndex) {
-            newIndex = dropGroupIndex; // Already accounted for by removal
-        } else {
-            newIndex = dropGroupIndex;
+        try {
+            // Reorder groups within same section
+            // Get the group BEFORE modifying arrays
+            const draggedGroup = taskData[draggedSection][draggedGroupIndex];
+            
+            if (!draggedGroup) {
+                console.error('Could not find dragged group:', { draggedSection, draggedGroupIndex });
+                return false;
+            }
+            
+            // Make a deep copy to avoid reference issues
+            const groupToMove = JSON.parse(JSON.stringify(draggedGroup));
+            
+            // Remove from original position
+            taskData[draggedSection].splice(draggedGroupIndex, 1);
+            
+            // Calculate new index (adjust if dragging down)
+            let newIndex = dropGroupIndex;
+            if (draggedGroupIndex < dropGroupIndex) {
+                newIndex = dropGroupIndex; // Already accounted for by removal
+            } else {
+                newIndex = dropGroupIndex;
+            }
+            
+            // Ensure newIndex is valid
+            newIndex = Math.max(0, Math.min(newIndex, taskData[dropSection].length));
+            
+            // Insert at new position
+            taskData[dropSection].splice(newIndex, 0, groupToMove);
+            
+            saveData();
+            renderTasks();
+            updateStats();
+            updateProgress();
+        } catch (error) {
+            console.error('Error during group drop:', error);
+            // Re-render to restore UI state
+            renderTasks();
+            alert('An error occurred while moving the group. Please try again.');
+            return false;
         }
-        
-        // Insert at new position
-        taskData[dropSection].splice(newIndex, 0, draggedGroup);
-        
-        saveData();
-        renderTasks();
-        updateStats();
-        updateProgress();
     }
     
     this.classList.remove('drag-over');
@@ -596,6 +661,21 @@ function handleTaskDrop(e) {
     const draggedGroupIndex = parseInt(draggedElement.dataset.groupIndex);
     const draggedTaskIndex = parseInt(draggedElement.dataset.taskIndex);
     
+    // Validate indices
+    if (isNaN(draggedGroupIndex) || isNaN(draggedTaskIndex)) {
+        console.error('Invalid drag indices:', { draggedGroupIndex, draggedTaskIndex });
+        return false;
+    }
+    
+    // Validate data exists
+    if (!taskData[draggedSection] || 
+        !taskData[draggedSection][draggedGroupIndex] ||
+        !taskData[draggedSection][draggedGroupIndex].tasks ||
+        draggedTaskIndex >= taskData[draggedSection][draggedGroupIndex].tasks.length) {
+        console.error('Invalid drag source:', { draggedSection, draggedGroupIndex, draggedTaskIndex });
+        return false;
+    }
+    
     // Determine drop location
     let dropSection, dropGroupIndex, dropTaskIndex;
     
@@ -608,46 +688,82 @@ function handleTaskDrop(e) {
         // Dropping on task list (end of group)
         dropSection = dropTarget.dataset.section;
         dropGroupIndex = parseInt(dropTarget.dataset.groupIndex);
+        // Validate drop target exists
+        if (!taskData[dropSection] || !taskData[dropSection][dropGroupIndex]) {
+            console.error('Invalid drop target:', { dropSection, dropGroupIndex });
+            return false;
+        }
         dropTaskIndex = taskData[dropSection][dropGroupIndex].tasks.length;
     } else {
         return false;
     }
     
-    // Get the dragged task
-    const draggedTask = taskData[draggedSection][draggedGroupIndex].tasks[draggedTaskIndex];
-    
-    // If moving within the same group, just reorder
-    if (draggedSection === dropSection && draggedGroupIndex === dropGroupIndex) {
-        // Remove from original position
-        taskData[draggedSection][draggedGroupIndex].tasks.splice(draggedTaskIndex, 1);
-        
-        // Calculate new index (adjust if dragging down)
-        let newIndex = dropTaskIndex;
-        if (draggedTaskIndex < dropTaskIndex) {
-            newIndex = dropTaskIndex - 1; // Account for removal
-        } else {
-            newIndex = dropTaskIndex;
-        }
-        
-        // Insert at new position
-        taskData[dropSection][dropGroupIndex].tasks.splice(newIndex, 0, draggedTask);
-    } else {
-        // Moving to a different group
-        taskData[draggedSection][draggedGroupIndex].tasks.splice(draggedTaskIndex, 1);
-        
-        // For cross-group moves, adjust index if needed
-        let newIndex = dropTaskIndex;
-        if (draggedSection === dropSection && draggedGroupIndex < dropGroupIndex) {
-            // Moving to a later group in same section, no adjustment needed
-        }
-        
-        taskData[dropSection][dropGroupIndex].tasks.splice(newIndex, 0, draggedTask);
+    // Validate drop indices
+    if (isNaN(dropGroupIndex) || isNaN(dropTaskIndex)) {
+        console.error('Invalid drop indices:', { dropGroupIndex, dropTaskIndex });
+        return false;
     }
     
-    saveData();
-    renderTasks();
-    updateStats();
-    updateProgress();
+    // Validate drop target exists
+    if (!taskData[dropSection] || !taskData[dropSection][dropGroupIndex]) {
+        console.error('Invalid drop target data:', { dropSection, dropGroupIndex });
+        return false;
+    }
+    
+    // Get the dragged task BEFORE modifying arrays
+    const draggedTask = taskData[draggedSection][draggedGroupIndex].tasks[draggedTaskIndex];
+    
+    // Validate we got a valid task
+    if (!draggedTask) {
+        console.error('Could not find dragged task:', { draggedSection, draggedGroupIndex, draggedTaskIndex });
+        return false;
+    }
+    
+    // Make a deep copy of the task to avoid reference issues
+    const taskToMove = JSON.parse(JSON.stringify(draggedTask));
+    
+    try {
+        // If moving within the same group, just reorder
+        if (draggedSection === dropSection && draggedGroupIndex === dropGroupIndex) {
+            // Remove from original position
+            taskData[draggedSection][draggedGroupIndex].tasks.splice(draggedTaskIndex, 1);
+            
+            // Calculate new index (adjust if dragging down)
+            let newIndex = dropTaskIndex;
+            if (draggedTaskIndex < dropTaskIndex) {
+                newIndex = dropTaskIndex - 1; // Account for removal
+            } else {
+                newIndex = dropTaskIndex;
+            }
+            
+            // Ensure newIndex is valid
+            newIndex = Math.max(0, Math.min(newIndex, taskData[dropSection][dropGroupIndex].tasks.length));
+            
+            // Insert at new position
+            taskData[dropSection][dropGroupIndex].tasks.splice(newIndex, 0, taskToMove);
+        } else {
+            // Moving to a different group - remove from source first
+            taskData[draggedSection][draggedGroupIndex].tasks.splice(draggedTaskIndex, 1);
+            
+            // Ensure dropTaskIndex is valid
+            const maxIndex = taskData[dropSection][dropGroupIndex].tasks.length;
+            const newIndex = Math.max(0, Math.min(dropTaskIndex, maxIndex));
+            
+            // Insert at new position
+            taskData[dropSection][dropGroupIndex].tasks.splice(newIndex, 0, taskToMove);
+        }
+        
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    } catch (error) {
+        console.error('Error during task drop:', error);
+        // Re-render to restore UI state
+        renderTasks();
+        alert('An error occurred while moving the task. Please try again.');
+        return false;
+    }
     
     // Clean up
     if (dropTarget.classList.contains('task-item')) {
@@ -688,7 +804,7 @@ function renderTask(section, groupIndex, taskIndex, task) {
     if (!settings.showCompleted && task.completed) return '';
 
     return `
-        <div class="task-item ${task.completed ? 'checked' : ''}" 
+        <div class="task-item ${task.completed ? 'checked' : ''} ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'focused-task' : ''}" 
              draggable="true" 
              data-section="${section}" 
              data-group-index="${groupIndex}" 
@@ -727,6 +843,9 @@ function renderTask(section, groupIndex, taskIndex, task) {
                 ` : ''}
             </div>
             <div class="task-actions">
+                <button class="focus-btn ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'active' : ''}" 
+                        onclick="toggleFocusTask('${section}', ${groupIndex}, ${taskIndex})" 
+                        title="${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'Stop focusing on this task' : 'Focus on this task (periodic alerts)'}">🎯</button>
                 <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
                 <button class="move-btn" onclick="moveTask('${section}', ${groupIndex}, ${taskIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
@@ -852,6 +971,15 @@ window.toggleTask = async function(section, groupIndex, taskIndex) {
     // If completing the task, prompt for actual time
     if (!task.completed) {
         task.completed = true;
+        
+        // Clear focus if completing the active task
+        if (settings.activeTask &&
+            settings.activeTask.section === section &&
+            settings.activeTask.groupIndex === groupIndex &&
+            settings.activeTask.taskIndex === taskIndex) {
+            settings.activeTask = null;
+            clearFocusTimer();
+        }
 
         // Prompt for actual time if there's an estimate
         if (task.estimatedMinutes) {
@@ -922,7 +1050,23 @@ window.deleteGroup = function(section, groupIndex) {
         : `Are you sure you want to delete the project "${group.groupName}"?\n\nThis action cannot be undone.`;
 
     if (confirm(confirmMsg)) {
+        // Check if active task is in this group
+        if (settings.activeTask &&
+            settings.activeTask.section === section &&
+            settings.activeTask.groupIndex === groupIndex) {
+            settings.activeTask = null;
+            clearFocusTimer();
+        }
+        
         taskData[section].splice(groupIndex, 1);
+        
+        // Adjust active task group index if deleting before it
+        if (settings.activeTask &&
+            settings.activeTask.section === section &&
+            settings.activeTask.groupIndex > groupIndex) {
+            settings.activeTask.groupIndex--;
+        }
+        
         saveData();
         renderTasks();
         updateStats();
@@ -1159,9 +1303,33 @@ window.deleteTask = function(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
 
     if (confirm(`Are you sure you want to delete this task?\n\n"${task.title}"\n\nThis action cannot be undone.`)) {
+        // Check if this is the active focused task
+        if (settings.activeTask &&
+            settings.activeTask.section === section &&
+            settings.activeTask.groupIndex === groupIndex &&
+            settings.activeTask.taskIndex === taskIndex) {
+            // Clear focus if deleting the active task
+            settings.activeTask = null;
+            clearFocusTimer();
+        }
+        
         taskData[section][groupIndex].tasks.splice(taskIndex, 1);
         if (taskData[section][groupIndex].tasks.length === 0) {
             taskData[section].splice(groupIndex, 1);
+            
+            // Adjust active task index if needed
+            if (settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex) {
+                settings.activeTask = null;
+                clearFocusTimer();
+            }
+        } else {
+            // Adjust active task index if deleting before it
+            if (settings.activeTask &&
+                settings.activeTask.section === section &&
+                settings.activeTask.groupIndex === groupIndex &&
+                settings.activeTask.taskIndex > taskIndex) {
+                settings.activeTask.taskIndex--;
+            }
         }
         saveData();
         renderTasks();
@@ -1569,6 +1737,176 @@ document.getElementById('overlay').addEventListener('click', function() {
     this.classList.remove('active');
 });
 
+// Check for lost data in localStorage
+window.checkForLostData = function() {
+    console.log('=== Checking for lost data ===');
+    console.log('Current taskData:', taskData);
+    
+    // Check raw localStorage
+    const rawData = localStorage.getItem('taskData');
+    console.log('Raw localStorage data:', rawData);
+    
+    // Check backups
+    const backups = JSON.parse(localStorage.getItem('taskData_backups') || '[]');
+    console.log('Available backups:', backups);
+    
+    // Check archived tasks
+    console.log('Archived tasks:', archivedTasks);
+    
+    alert('Check the browser console (F12) for detailed information about your data.');
+    return { taskData, backups, archivedTasks };
+}
+
+// Restore from backup
+window.restoreFromBackup = function() {
+    const backups = JSON.parse(localStorage.getItem('taskData_backups') || '[]');
+    
+    if (backups.length === 0) {
+        alert('No backups found. Backups will be created automatically starting now.');
+        return;
+    }
+    
+    // Show list of backups
+    let backupList = 'Available backups:\n\n';
+    backups.forEach((backup, index) => {
+        const date = new Date(backup.timestamp);
+        backupList += `${index + 1}. ${date.toLocaleString()}\n`;
+    });
+    
+    const choice = prompt(backupList + '\nEnter the backup number to restore (1-' + backups.length + '), or cancel to abort:');
+    const backupIndex = parseInt(choice) - 1;
+    
+    if (backupIndex >= 0 && backupIndex < backups.length) {
+        const backup = backups[backupIndex];
+        if (backup && backup.taskData) {
+            if (confirm(`Restore backup from ${new Date(backup.timestamp).toLocaleString()}? This will replace your current tasks.`)) {
+                taskData = backup.taskData;
+                saveData();
+                renderTasks();
+                updateStats();
+                updateProgress();
+                alert('✓ Backup restored!');
+            }
+        } else {
+            alert('Invalid backup data.');
+        }
+    }
+}
+
+// Focus mode functions
+function initFocusMode() {
+    if (settings.activeTask && settings.focusAlertInterval) {
+        startFocusTimer();
+    }
+}
+
+function startFocusTimer() {
+    clearFocusTimer(); // Clear any existing timer
+    
+    if (!settings.activeTask || !settings.focusAlertInterval) {
+        return;
+    }
+    
+    // Verify the active task still exists
+    const { section, groupIndex, taskIndex } = settings.activeTask;
+    if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
+        // Task no longer exists, clear focus
+        settings.activeTask = null;
+        saveData();
+        return;
+    }
+    
+    const intervalMs = settings.focusAlertInterval * 60 * 1000; // Convert minutes to milliseconds
+    
+    focusTimer = setInterval(() => {
+        showFocusAlert();
+    }, intervalMs);
+}
+
+function clearFocusTimer() {
+    if (focusTimer) {
+        clearInterval(focusTimer);
+        focusTimer = null;
+    }
+}
+
+function showFocusAlert() {
+    if (!settings.activeTask) {
+        clearFocusTimer();
+        return;
+    }
+    
+    const { section, groupIndex, taskIndex } = settings.activeTask;
+    
+    // Verify task still exists
+    if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
+        settings.activeTask = null;
+        saveData();
+        clearFocusTimer();
+        return;
+    }
+    
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    const taskTitle = task.title;
+    
+    // Show alert
+    const response = confirm(`🎯 Are you still working on:\n\n"${taskTitle}"?\n\nClick OK if you're still working, or Cancel to stop focusing.`);
+    
+    if (!response) {
+        // User clicked Cancel - stop focusing
+        toggleFocusTask(section, groupIndex, taskIndex);
+    }
+    // If OK, timer continues automatically
+}
+
+window.toggleFocusTask = function(section, groupIndex, taskIndex) {
+    // Check if this is already the active task
+    const isCurrentlyActive = settings.activeTask &&
+        settings.activeTask.section === section &&
+        settings.activeTask.groupIndex === groupIndex &&
+        settings.activeTask.taskIndex === taskIndex;
+    
+    if (isCurrentlyActive) {
+        // Stop focusing
+        settings.activeTask = null;
+        clearFocusTimer();
+        saveData();
+        renderTasks();
+    } else {
+        // Start focusing on this task
+        settings.activeTask = { section, groupIndex, taskIndex };
+        
+        if (!settings.focusAlertInterval) {
+            settings.focusAlertInterval = 10; // Default to 10 minutes
+        }
+        
+        startFocusTimer();
+        saveData();
+        renderTasks();
+        
+        // Show confirmation
+        const task = taskData[section][groupIndex].tasks[taskIndex];
+        alert(`🎯 Now focusing on: "${task.title}"\n\nYou'll receive alerts every ${settings.focusAlertInterval} minutes asking if you're still working on it.`);
+    }
+}
+
+window.updateFocusAlertInterval = function() {
+    const select = document.getElementById('focusAlertInterval');
+    const newInterval = parseInt(select.value);
+    
+    if (newInterval === 5 || newInterval === 10 || newInterval === 15) {
+        settings.focusAlertInterval = newInterval;
+        saveData();
+        
+        // Restart timer if active task exists
+        if (settings.activeTask) {
+            startFocusTimer();
+        }
+        
+        alert(`✓ Focus alert interval updated to ${newInterval} minutes.`);
+    }
+}
+
 // Clear all data with double confirmation
 window.clearAllData = function() {
     const firstConfirm = confirm('⚠️ WARNING: This will permanently delete ALL your tasks and settings.\n\nAre you sure you want to continue?');
@@ -1586,11 +1924,32 @@ window.clearAllData = function() {
     }
 }
 
-// Save data to localStorage
+// Save data to localStorage with backup
 function saveData() {
-    localStorage.setItem('taskData', JSON.stringify(taskData));
-    localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
-    localStorage.setItem('settings', JSON.stringify(settings));
+    try {
+        // Create a backup of current data before saving
+        const currentData = {
+            taskData: JSON.parse(localStorage.getItem('taskData') || 'null'),
+            timestamp: Date.now()
+        };
+        
+        // Keep only the last 5 backups (to avoid filling localStorage)
+        let backups = JSON.parse(localStorage.getItem('taskData_backups') || '[]');
+        backups.push(currentData);
+        if (backups.length > 5) {
+            backups = backups.slice(-5); // Keep only last 5
+        }
+        localStorage.setItem('taskData_backups', JSON.stringify(backups));
+        
+        // Save current data
+        localStorage.setItem('taskData', JSON.stringify(taskData));
+        localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
+        localStorage.setItem('settings', JSON.stringify(settings));
+        localStorage.setItem('taskData_lastSaved', Date.now().toString());
+    } catch (error) {
+        console.error('Error saving data:', error);
+        alert('Warning: Failed to save task data. Please check your browser storage.');
+    }
 }
 
 // Keyboard shortcuts
@@ -1636,6 +1995,12 @@ function loadOpenAIKey() {
     const groqInput = document.getElementById('groqApiKey');
     const anthropicInput = document.getElementById('anthropicApiKey');
     const providerSelect = document.getElementById('aiProvider');
+    const focusIntervalSelect = document.getElementById('focusAlertInterval');
+    
+    // Load focus alert interval setting
+    if (focusIntervalSelect) {
+        focusIntervalSelect.value = settings.focusAlertInterval || 10;
+    }
 
     if (openaiInput && settings.openaiApiKey) {
         openaiInput.value = settings.openaiApiKey;
