@@ -410,12 +410,12 @@
             /* Removed float animation to reduce GPU usage */
         }
 
-        /* Today Section - Vibrant cyan/teal colors */
+        /* Today Section - Bright, light, vibrant colors */
         #todaySection {
-            background: linear-gradient(135deg, rgba(79, 172, 254, 0.35) 0%, rgba(0, 242, 254, 0.25) 100%);
+            background: linear-gradient(135deg, rgba(135, 206, 250, 0.7) 0%, rgba(173, 216, 230, 0.65) 50%, rgba(224, 255, 255, 0.6) 100%);
             backdrop-filter: blur(25px);
-            border: 2px solid rgba(79, 172, 254, 0.5);
-            box-shadow: 0 8px 32px rgba(79, 172, 254, 0.3);
+            border: 2px solid rgba(173, 216, 230, 0.9);
+            box-shadow: 0 8px 32px rgba(135, 206, 250, 0.5), 0 0 40px rgba(173, 216, 230, 0.3);
         }
 
         #todaySection::before {
@@ -425,7 +425,7 @@
             left: 0;
             right: 0;
             height: 100%;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.15) 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.15) 100%);
             opacity: 1;
             transition: opacity 0.4s ease;
             z-index: 0;
@@ -433,12 +433,24 @@
 
         #todaySection:hover {
             transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(79, 172, 254, 0.4);
-            border-color: rgba(79, 172, 254, 0.7);
+            box-shadow: 0 12px 40px rgba(135, 206, 250, 0.6), 0 0 60px rgba(173, 216, 230, 0.4);
+            border-color: rgba(224, 255, 255, 1);
         }
 
         #todaySection:hover::before {
-            opacity: 0.8;
+            opacity: 1.2;
+        }
+
+        /* Ensure today section content is above overlay */
+        #todaySection > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Enhance today section title for better contrast */
+        #todaySection h1 {
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
         }
 
         /* Longterm Section - Cool, calm colors */
@@ -522,8 +534,10 @@
         }
 
         .badge-today {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-            color: white;
+            background: linear-gradient(135deg, #87ceeb 0%, #b0e0e6 50%, #e0ffff 100%);
+            color: #1a4d5c;
+            font-weight: 800;
+            box-shadow: 0 4px 15px rgba(135, 206, 235, 0.5), 0 0 20px rgba(173, 216, 230, 0.4);
         }
 
         .badge-longterm {
