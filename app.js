@@ -113,7 +113,7 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
     anthropicApiKey: '',
     aiProvider: 'gemini',
     focusAlertInterval: 10, // minutes: 5, 10, or 15
-    activeTask: null // { section, groupIndex, taskIndex }
+    activeTask: null // { section, groupIndex, taskIndex, websiteUrl, alertInterval }
 };
 
 let currentUser = null;
@@ -1795,7 +1795,7 @@ window.restoreFromBackup = function() {
 
 // Focus mode functions
 function initFocusMode() {
-    if (settings.activeTask && settings.focusAlertInterval) {
+    if (settings.activeTask && settings.activeTask.alertInterval) {
         startFocusTimer();
     }
 }
@@ -1803,7 +1803,7 @@ function initFocusMode() {
 function startFocusTimer() {
     clearFocusTimer(); // Clear any existing timer
     
-    if (!settings.activeTask || !settings.focusAlertInterval) {
+    if (!settings.activeTask || !settings.activeTask.alertInterval) {
         return;
     }
     
@@ -1816,7 +1816,7 @@ function startFocusTimer() {
         return;
     }
     
-    const intervalMs = settings.focusAlertInterval * 60 * 1000; // Convert minutes to milliseconds
+    const intervalMs = settings.activeTask.alertInterval * 60 * 1000; // Convert minutes to milliseconds
     
     focusTimer = setInterval(() => {
         showFocusAlert();
@@ -1836,7 +1836,7 @@ function showFocusAlert() {
         return;
     }
     
-    const { section, groupIndex, taskIndex } = settings.activeTask;
+    const { section, groupIndex, taskIndex, websiteUrl } = settings.activeTask;
     
     // Verify task still exists
     if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
@@ -1849,17 +1849,79 @@ function showFocusAlert() {
     const task = taskData[section][groupIndex].tasks[taskIndex];
     const taskTitle = task.title;
     
-    // Show alert
-    const response = confirm(`🎯 Are you still working on:\n\n"${taskTitle}"?\n\nClick OK if you're still working, or Cancel to stop focusing.`);
+    // Build alert message
+    let message = `🎯 Are you still working on:\n\n"${taskTitle}"?\n\n`;
     
-    if (!response) {
-        // User clicked Cancel - stop focusing
-        toggleFocusTask(section, groupIndex, taskIndex);
+    if (websiteUrl) {
+        message += `🌐 Website linked: ${websiteUrl}\n\n`;
     }
-    // If OK, timer continues automatically
+    
+    message += `Click OK if you're still working, or Cancel to stop focusing.`;
+    
+    // Create a custom alert with website link button
+    const alertDiv = document.createElement('div');
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, rgba(79, 172, 254, 0.95) 0%, rgba(0, 242, 254, 0.95) 100%);
+        backdrop-filter: blur(20px);
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.5);
+        z-index: 10000;
+        max-width: 500px;
+        text-align: center;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+    `;
+    
+    alertDiv.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 15px;">🎯</div>
+        <div style="font-size: 18px; font-weight: 700; color: white; margin-bottom: 15px; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+            Are you still working on:
+        </div>
+        <div style="font-size: 20px; font-weight: 600; color: white; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 10px; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+            "${taskTitle}"
+        </div>
+        ${websiteUrl ? `
+            <a href="${websiteUrl}" target="_blank" 
+               style="display: inline-block; padding: 12px 24px; background: rgba(255, 255, 255, 0.9); color: #333; text-decoration: none; border-radius: 10px; font-weight: 600; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: all 0.3s;">
+                🌐 Open Linked Website
+            </a>
+            <div style="margin-bottom: 15px;"></div>
+        ` : ''}
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            <button id="focusAlertContinue" 
+                    style="padding: 12px 30px; background: rgba(67, 233, 123, 0.9); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                ✅ Yes, Still Working
+            </button>
+            <button id="focusAlertStop" 
+                    style="padding: 12px 30px; background: rgba(255, 107, 107, 0.9); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                ❌ Stop Focusing
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Handle button clicks
+    document.getElementById('focusAlertContinue').onclick = () => {
+        document.body.removeChild(alertDiv);
+        // Timer continues automatically
+    };
+    
+    document.getElementById('focusAlertStop').onclick = () => {
+        document.body.removeChild(alertDiv);
+        // Stop focusing
+        toggleFocusTask(section, groupIndex, taskIndex);
+    };
+    
+    // Focus on continue button for keyboard accessibility
+    setTimeout(() => document.getElementById('focusAlertContinue').focus(), 100);
 }
 
-window.toggleFocusTask = function(section, groupIndex, taskIndex) {
+window.toggleFocusTask = async function(section, groupIndex, taskIndex) {
     // Check if this is already the active task
     const isCurrentlyActive = settings.activeTask &&
         settings.activeTask.section === section &&
@@ -1872,21 +1934,66 @@ window.toggleFocusTask = function(section, groupIndex, taskIndex) {
         clearFocusTimer();
         saveData();
         renderTasks();
+        alert('🎯 Focus mode stopped for this task.');
     } else {
-        // Start focusing on this task
-        settings.activeTask = { section, groupIndex, taskIndex };
+        // Start focusing on this task - show setup dialog
+        const task = taskData[section][groupIndex].tasks[taskIndex];
         
-        if (!settings.focusAlertInterval) {
-            settings.focusAlertInterval = 10; // Default to 10 minutes
+        // Ask for alert interval
+        const intervalInput = await showCustomModal(
+            '🎯 Focus Mode Setup',
+            `Task: "${task.title}"\n\nHow often should we check in?\n\nEnter: 5, 10, or 15 (minutes)`,
+            '10'
+        );
+        
+        if (intervalInput === null) return; // User cancelled
+        
+        let alertInterval = parseInt(intervalInput);
+        if (isNaN(alertInterval) || ![5, 10, 15].includes(alertInterval)) {
+            alertInterval = 10; // Default to 10 minutes
         }
+        
+        // Ask for website URL (optional)
+        const websiteInput = await showCustomModal(
+            '🌐 Link Website (Optional)',
+            `Do you want to link a specific website for this task?\n\nEnter the URL (e.g., https://example.com)\nOr leave blank to skip.`,
+            ''
+        );
+        
+        let websiteUrl = null;
+        if (websiteInput !== null && websiteInput.trim() !== '') {
+            // Validate and format URL
+            let url = websiteInput.trim();
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            try {
+                new URL(url); // Validate URL
+                websiteUrl = url;
+            } catch (e) {
+                alert('Invalid URL format. Focus mode will continue without website link.');
+            }
+        }
+        
+        // Start focusing
+        settings.activeTask = {
+            section,
+            groupIndex,
+            taskIndex,
+            alertInterval,
+            websiteUrl
+        };
         
         startFocusTimer();
         saveData();
         renderTasks();
         
         // Show confirmation
-        const task = taskData[section][groupIndex].tasks[taskIndex];
-        alert(`🎯 Now focusing on: "${task.title}"\n\nYou'll receive alerts every ${settings.focusAlertInterval} minutes asking if you're still working on it.`);
+        let confirmMsg = `🎯 Now focusing on: "${task.title}"\n\nYou'll receive alerts every ${alertInterval} minutes.`;
+        if (websiteUrl) {
+            confirmMsg += `\n\n🌐 Website linked: ${websiteUrl}`;
+        }
+        alert(confirmMsg);
     }
 }
 
@@ -1895,15 +2002,17 @@ window.updateFocusAlertInterval = function() {
     const newInterval = parseInt(select.value);
     
     if (newInterval === 5 || newInterval === 10 || newInterval === 15) {
-        settings.focusAlertInterval = newInterval;
+        settings.focusAlertInterval = newInterval; // Store as default for future focus sessions
         saveData();
         
-        // Restart timer if active task exists
+        // Update current active task if exists
         if (settings.activeTask) {
-            startFocusTimer();
+            settings.activeTask.alertInterval = newInterval;
+            startFocusTimer(); // Restart with new interval
+            saveData();
         }
         
-        alert(`✓ Focus alert interval updated to ${newInterval} minutes.`);
+        alert(`✓ Default focus alert interval updated to ${newInterval} minutes.\n\nNote: You can set a custom interval when focusing on each task.`);
     }
 }
 
