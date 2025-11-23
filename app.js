@@ -385,17 +385,13 @@ window.submitNewTask = function() {
         const [projectSection, projectIndex] = projectValue.split('-');
         taskData[projectSection][parseInt(projectIndex)].tasks.push(newTask);
     } else {
-        // Create new project with this task
-        const projectName = prompt('Enter project name for this task:', 'New Project');
-        if (!projectName) {
-            closeNewTaskModal();
-            return;
+        // Add to "Quick Tasks" group or create it
+        let quickGroup = taskData[section].find(g => g.groupName === 'Quick Tasks');
+        if (!quickGroup) {
+            quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+            taskData[section].unshift(quickGroup);
         }
-
-        taskData[section].push({
-            groupName: projectName.trim(),
-            tasks: [newTask]
-        });
+        quickGroup.tasks.push(newTask);
     }
 
     saveData();
