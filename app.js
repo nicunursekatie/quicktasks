@@ -323,6 +323,32 @@ function init() {
     updateProgress();
     loadOpenAIKey();
     initFocusMode();
+    requestNotificationPermission();
+}
+
+// Request notification permission for background alerts
+function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        // Only ask once, and let user know why
+        setTimeout(() => {
+            const shouldAsk = confirm(
+                '🔔 Focus Mode Alerts\n\n' +
+                'Would you like to enable browser notifications?\n\n' +
+                'This allows focus alerts to work even when this tab is in the background.\n\n' +
+                'Click OK to enable, or Cancel to skip (alerts will only work when tab is active).'
+            );
+            
+            if (shouldAsk) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        console.log('✅ Notification permission granted');
+                    } else {
+                        console.log('❌ Notification permission denied');
+                    }
+                });
+            }
+        }, 2000); // Wait 2 seconds after page load
+    }
 }
 
 // Update date stamp
@@ -1849,17 +1875,57 @@ function showFocusAlert() {
     const task = taskData[section][groupIndex].tasks[taskIndex];
     const taskTitle = task.title;
     
-    // Build alert message
-    let message = `🎯 Are you still working on:\n\n"${taskTitle}"?\n\n`;
-    
-    if (websiteUrl) {
-        message += `🌐 Website linked: ${websiteUrl}\n\n`;
+    // Show browser notification (works even when tab is in background)
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const notificationOptions = {
+            body: websiteUrl 
+                ? `Click to open the linked website or view the task.\n\n🌐 ${websiteUrl}`
+                : 'Click to view the task and respond.',
+            icon: '🎯',
+            badge: '🎯',
+            tag: 'focus-alert', // Replace previous notifications
+            requireInteraction: true, // Keep notification visible until user interacts
+            data: {
+                section,
+                groupIndex,
+                taskIndex,
+                websiteUrl
+            }
+        };
+        
+        const notification = new Notification(`🎯 Still working on: "${taskTitle}"?`, notificationOptions);
+        
+        // Handle notification click
+        notification.onclick = (event) => {
+            event.preventDefault();
+            window.focus(); // Bring window to front
+            
+            // Show the alert dialog when user clicks notification
+            showFocusAlertDialog(section, groupIndex, taskIndex, taskTitle, websiteUrl);
+            
+            notification.close();
+        };
+        
+        // Auto-close notification after 30 seconds if not interacted with
+        setTimeout(() => notification.close(), 30000);
     }
     
-    message += `Click OK if you're still working, or Cancel to stop focusing.`;
+    // Also show dialog if tab is active (for immediate response)
+    if (document.visibilityState === 'visible') {
+        showFocusAlertDialog(section, groupIndex, taskIndex, taskTitle, websiteUrl);
+    }
+}
+
+function showFocusAlertDialog(section, groupIndex, taskIndex, taskTitle, websiteUrl) {
+    // Check if dialog already exists to prevent duplicates
+    const existingDialog = document.getElementById('focusAlertDialog');
+    if (existingDialog) {
+        return; // Dialog already showing
+    }
     
     // Create a custom alert with website link button
     const alertDiv = document.createElement('div');
+    alertDiv.id = 'focusAlertDialog';
     alertDiv.style.cssText = `
         position: fixed;
         top: 50%;
@@ -1903,22 +1969,35 @@ function showFocusAlert() {
         </div>
     `;
     
+    const removeDialog = () => {
+        if (alertDiv && alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    };
+    
     document.body.appendChild(alertDiv);
     
     // Handle button clicks
     document.getElementById('focusAlertContinue').onclick = () => {
-        document.body.removeChild(alertDiv);
+        removeDialog();
         // Timer continues automatically
     };
     
     document.getElementById('focusAlertStop').onclick = () => {
-        document.body.removeChild(alertDiv);
+        removeDialog();
         // Stop focusing
         toggleFocusTask(section, groupIndex, taskIndex);
     };
     
     // Focus on continue button for keyboard accessibility
     setTimeout(() => document.getElementById('focusAlertContinue').focus(), 100);
+    
+    // Close dialog when clicking outside (optional)
+    alertDiv.onclick = (e) => {
+        if (e.target === alertDiv) {
+            removeDialog();
+        }
+    };
 }
 
 window.toggleFocusTask = async function(section, groupIndex, taskIndex) {
