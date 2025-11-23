@@ -470,6 +470,32 @@ window.editTask = function(section, groupIndex, taskIndex) {
 
     // Populate modal
     document.getElementById('taskEditTitle').value = task.title;
+    document.getElementById('taskEditDueDate').value = task.dueDate || '';
+
+    // Populate project dropdown
+    const projectSelect = document.getElementById('taskEditProject');
+    projectSelect.innerHTML = '';
+
+    // Add all projects from both sections
+    taskData.today.forEach((group, index) => {
+        const option = document.createElement('option');
+        option.value = `today-${index}`;
+        option.textContent = `⚡ ${group.groupName}`;
+        if (section === 'today' && index === groupIndex) {
+            option.selected = true;
+        }
+        projectSelect.appendChild(option);
+    });
+
+    taskData.longterm.forEach((group, index) => {
+        const option = document.createElement('option');
+        option.value = `longterm-${index}`;
+        option.textContent = `📅 ${group.groupName}`;
+        if (section === 'longterm' && index === groupIndex) {
+            option.selected = true;
+        }
+        projectSelect.appendChild(option);
+    });
 
     // Render subtasks
     const container = document.getElementById('taskEditSubtasksContainer');
@@ -568,6 +594,19 @@ window.submitTaskEdit = function() {
         task.title = newTitle;
     }
 
+    // Update due date
+    const newDueDate = document.getElementById('taskEditDueDate').value;
+    if (newDueDate) {
+        task.dueDate = newDueDate;
+    } else {
+        delete task.dueDate;
+    }
+
+    // Check if project changed
+    const selectedProject = document.getElementById('taskEditProject').value;
+    const [newSection, newGroupIndex] = selectedProject.split('-');
+    const movedProject = section !== newSection || groupIndex !== parseInt(newGroupIndex);
+
     // Update subtasks
     if (task.subtasks) {
         const inputs = document.querySelectorAll('.subtask-edit-input');
@@ -585,8 +624,24 @@ window.submitTaskEdit = function() {
         }
     }
 
+    // Move task to different project if changed
+    if (movedProject) {
+        // Remove from current project
+        taskData[section][groupIndex].tasks.splice(taskIndex, 1);
+
+        // Remove project if empty
+        if (taskData[section][groupIndex].tasks.length === 0) {
+            taskData[section].splice(groupIndex, 1);
+        }
+
+        // Add to new project
+        taskData[newSection][parseInt(newGroupIndex)].tasks.push(task);
+    }
+
     saveData();
     renderTasks();
+    updateStats();
+    updateProgress();
     closeTaskEditModal();
 }
 
