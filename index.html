@@ -1986,8 +1986,11 @@
                 </div>
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Due Date (optional)</label>
-                    <input type="date" id="newTaskDueDate"
+                    <input type="text" id="newTaskDueDate" placeholder="tomorrow, next Friday, 2024-12-25..."
                            style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                    <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                        Try: tomorrow, next week, friday, in 3 days, or YYYY-MM-DD
+                    </div>
                 </div>
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Estimated Time (optional)</label>
@@ -1996,6 +1999,16 @@
                                style="width: 80px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
                         <span style="color: #666; font-size: 14px;">minutes</span>
                     </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Emotional Weight (optional)</label>
+                    <select id="newTaskEmotionalWeight"
+                            style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <option value="">-- None --</option>
+                        <option value="light">💨 Light (Easy, no stress)</option>
+                        <option value="moderate">⚖️ Moderate (Some mental effort)</option>
+                        <option value="heavy">🎯 Heavy (Mentally demanding)</option>
+                    </select>
                 </div>
             </div>
             <div class="custom-modal-footer">
@@ -2058,6 +2071,16 @@
                                style="width: 80px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
                         <span style="color: #666; font-size: 14px;">minutes</span>
                     </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Emotional Weight</label>
+                    <select id="taskEditEmotionalWeight"
+                            style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <option value="">-- None --</option>
+                        <option value="light">💨 Light (Easy, no stress)</option>
+                        <option value="moderate">⚖️ Moderate (Some mental effort)</option>
+                        <option value="heavy">🎯 Heavy (Mentally demanding)</option>
+                    </select>
                 </div>
                 <div id="taskEditSubtasksContainer"></div>
                 <button onclick="addSubtaskInEdit()"

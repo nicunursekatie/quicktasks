@@ -193,6 +193,100 @@ function extractJSON(response) {
     }
 }
 
+// Smart date parser for natural language dates
+function parseNaturalDate(input) {
+    if (!input || !input.trim()) return null;
+
+    const text = input.toLowerCase().trim();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Direct date input (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+        return input;
+    }
+
+    // Today
+    if (text === 'today') {
+        return formatDate(today);
+    }
+
+    // Tomorrow
+    if (text === 'tomorrow' || text === 'tmr' || text === 'tom') {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        return formatDate(tomorrow);
+    }
+
+    // Yesterday
+    if (text === 'yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        return formatDate(yesterday);
+    }
+
+    // In X days
+    const inDaysMatch = text.match(/^in (\d+) days?$/);
+    if (inDaysMatch) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + parseInt(inDaysMatch[1]));
+        return formatDate(date);
+    }
+
+    // Next/This weekday
+    const weekdayMatch = text.match(/^(next|this) (monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/);
+    if (weekdayMatch) {
+        const targetDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(weekdayMatch[2]);
+        const currentDay = today.getDay();
+        const isNext = weekdayMatch[1] === 'next';
+
+        let daysToAdd = targetDay - currentDay;
+        if (daysToAdd <= 0 || isNext) {
+            daysToAdd += 7;
+        }
+
+        const date = new Date(today);
+        date.setDate(today.getDate() + daysToAdd);
+        return formatDate(date);
+    }
+
+    // Next week
+    if (text === 'next week') {
+        const date = new Date(today);
+        date.setDate(today.getDate() + 7);
+        return formatDate(date);
+    }
+
+    // Next month
+    if (text === 'next month') {
+        const date = new Date(today);
+        date.setMonth(today.getMonth() + 1);
+        return formatDate(date);
+    }
+
+    // Specific weekday (assumes next occurrence)
+    const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    if (weekdays.includes(text)) {
+        const targetDay = weekdays.indexOf(text) + 1; // Monday = 1
+        const currentDay = today.getDay();
+        let daysToAdd = targetDay - currentDay;
+        if (daysToAdd <= 0) daysToAdd += 7;
+
+        const date = new Date(today);
+        date.setDate(today.getDate() + daysToAdd);
+        return formatDate(date);
+    }
+
+    return null;
+}
+
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // Initialize
 function init() {
     updateDateStamp();
@@ -282,7 +376,7 @@ function renderTask(section, groupIndex, taskIndex, task) {
                    title="Mark as ${task.completed ? 'incomplete' : 'complete'}">
             <div class="task-content" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">
-                    ${escapeHtml(task.title)}
+                    ${task.emotionalWeight === 'light' ? '💨 ' : task.emotionalWeight === 'moderate' ? '⚖️ ' : task.emotionalWeight === 'heavy' ? '🎯 ' : ''}${escapeHtml(task.title)}
                     ${task.completed && task.actualMinutes && task.estimatedMinutes
                         ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.actualMinutes}/${task.estimatedMinutes}min</span>`
                         : task.estimatedMinutes
@@ -345,6 +439,7 @@ window.showNewTaskModal = function() {
     select.value = '';
     document.getElementById('newTaskDueDate').value = '';
     document.getElementById('newTaskEstimate').value = '';
+    document.getElementById('newTaskEmotionalWeight').value = '';
 
     // Show modal
     document.getElementById('newTaskModal').classList.add('active');
@@ -377,7 +472,7 @@ window.submitNewTask = function() {
 
     const section = document.querySelector('input[name="newTaskSection"]:checked').value;
     const projectValue = document.getElementById('newTaskProject').value;
-    const dueDate = document.getElementById('newTaskDueDate').value;
+    const dueDateInput = document.getElementById('newTaskDueDate').value;
     const estimate = document.getElementById('newTaskEstimate').value;
 
     const newTask = {
@@ -385,12 +480,23 @@ window.submitNewTask = function() {
         completed: false
     };
 
-    if (dueDate) {
-        newTask.dueDate = dueDate;
+    // Parse natural language date
+    if (dueDateInput) {
+        const parsedDate = parseNaturalDate(dueDateInput);
+        if (parsedDate) {
+            newTask.dueDate = parsedDate;
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(dueDateInput)) {
+            newTask.dueDate = dueDateInput;
+        }
     }
 
     if (estimate && parseInt(estimate) > 0) {
         newTask.estimatedMinutes = parseInt(estimate);
+    }
+
+    const emotionalWeight = document.getElementById('newTaskEmotionalWeight').value;
+    if (emotionalWeight) {
+        newTask.emotionalWeight = emotionalWeight;
     }
 
     if (projectValue) {
@@ -520,6 +626,7 @@ window.editTask = function(section, groupIndex, taskIndex) {
     document.getElementById('taskEditTitle').value = task.title;
     document.getElementById('taskEditDueDate').value = task.dueDate || '';
     document.getElementById('taskEditEstimate').value = task.estimatedMinutes || '';
+    document.getElementById('taskEditEmotionalWeight').value = task.emotionalWeight || '';
 
     // Populate project dropdown
     const projectSelect = document.getElementById('taskEditProject');
@@ -657,6 +764,14 @@ window.submitTaskEdit = function() {
         task.estimatedMinutes = parseInt(newEstimate);
     } else {
         delete task.estimatedMinutes;
+    }
+
+    // Update emotional weight
+    const newEmotionalWeight = document.getElementById('taskEditEmotionalWeight').value;
+    if (newEmotionalWeight) {
+        task.emotionalWeight = newEmotionalWeight;
+    } else {
+        delete task.emotionalWeight;
     }
 
     // Check if project changed
