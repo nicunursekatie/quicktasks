@@ -607,10 +607,82 @@
             padding: 0;
             background: transparent;
             border-radius: 0;
+            transition: all 0.3s ease;
+            cursor: grab;
+        }
+        
+        .task-group:active {
+            cursor: grabbing;
+        }
+        
+        .task-group h2,
+        .task-group .group-actions,
+        .task-group .group-actions * {
+            cursor: default;
+        }
+        
+        .task-group.dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+            cursor: grabbing;
+        }
+        
+        .task-group.drag-over {
+            border-top: 3px solid rgba(79, 172, 254, 0.8);
+            padding-top: 10px;
+            margin-top: 5px;
         }
 
         .task-group:last-child {
             margin-bottom: 0;
+        }
+        
+        .drag-handle {
+            cursor: grab;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 16px;
+            user-select: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: inline-block;
+            line-height: 1;
+        }
+        
+        .drag-handle:hover {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        .drag-handle-task {
+            cursor: grab;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            user-select: none;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: inline-block;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        
+        .drag-handle-task:hover {
+            color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .drag-handle-task:active {
+            cursor: grabbing;
+        }
+        
+        .task-list {
+            min-height: 20px;
+            transition: all 0.2s ease;
         }
 
         .group-header {
@@ -691,10 +763,42 @@
             background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.4);
-            cursor: pointer;
+            cursor: grab;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             position: relative;
             overflow: hidden;
+        }
+        
+        .task-item:active {
+            cursor: grabbing;
+        }
+        
+        .task-item.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            cursor: grabbing;
+        }
+        
+        .task-item.drag-over {
+            border-top: 3px solid rgba(79, 172, 254, 0.8);
+            padding-top: 11px;
+            margin-top: 5px;
+        }
+        
+        .task-list.drag-over-list {
+            background: rgba(79, 172, 254, 0.1);
+            border-radius: 8px;
+            min-height: 50px;
+        }
+        
+        #todayTasks.drag-over-list,
+        #longtermTasks.drag-over-list {
+            background: rgba(79, 172, 254, 0.1);
+            border-radius: 12px;
+            border: 2px dashed rgba(79, 172, 254, 0.5);
+            padding: 10px;
+            margin: 10px 0;
+            min-height: 100px;
         }
 
         .task-item::before {

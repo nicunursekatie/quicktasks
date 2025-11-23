@@ -331,14 +331,17 @@ function renderSection(section, containerId) {
         const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
         return `
-            <div class="task-group">
+            <div class="task-group" draggable="true" data-section="${section}" data-group-index="${groupIndex}">
                 <div class="group-header">
-                    <h2 onclick="editGroupName('${section}', ${groupIndex})" style="cursor: pointer;" title="Click to edit project name">
-                        ${escapeHtml(group.groupName)}
-                        <span style="font-size: 12px; color: var(--text-muted); font-weight: 400;">
-                            (${completedTasks}/${totalTasks})
-                        </span>
-                    </h2>
+                    <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                        <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                        <h2 onclick="editGroupName('${section}', ${groupIndex})" style="cursor: pointer; flex: 1;" title="Click to edit project name">
+                            ${escapeHtml(group.groupName)}
+                            <span style="font-size: 12px; color: var(--text-muted); font-weight: 400;">
+                                (${completedTasks}/${totalTasks})
+                            </span>
+                        </h2>
+                    </div>
                     <div class="group-actions">
                         <button class="group-edit-btn" onclick="editGroupName('${section}', ${groupIndex})" title="Edit project name">✏️</button>
                         <button class="group-add-task-btn" onclick="addTaskToGroup('${section}', ${groupIndex})" title="Add task to project">➕</button>
@@ -350,10 +353,279 @@ function renderSection(section, containerId) {
                 <div class="group-progress">
                     <div class="group-progress-fill" style="width: ${progress}%"></div>
                 </div>
-                ${group.tasks.map((task, taskIndex) => renderTask(section, groupIndex, taskIndex, task)).join('')}
+                <div class="task-list" data-section="${section}" data-group-index="${groupIndex}">
+                    ${group.tasks.map((task, taskIndex) => renderTask(section, groupIndex, taskIndex, task)).join('')}
+                </div>
             </div>
         `;
     }).join('');
+    
+    // Attach drag-and-drop event listeners after rendering
+    attachDragAndDropListeners();
+}
+
+// Drag and Drop functionality
+let draggedElement = null;
+let draggedType = null; // 'task' or 'group'
+
+function attachDragAndDropListeners() {
+    // Attach listeners to task groups
+    document.querySelectorAll('.task-group').forEach(group => {
+        group.addEventListener('dragstart', handleGroupDragStart);
+        group.addEventListener('dragend', handleDragEnd);
+        group.addEventListener('dragover', handleDragOver);
+        group.addEventListener('drop', handleGroupDrop);
+        group.addEventListener('dragleave', handleDragLeave);
+    });
+    
+    // Attach listeners to task items
+    document.querySelectorAll('.task-item').forEach(task => {
+        task.addEventListener('dragstart', handleTaskDragStart);
+        task.addEventListener('dragend', handleDragEnd);
+        task.addEventListener('dragover', handleDragOver);
+        task.addEventListener('drop', handleTaskDrop);
+        task.addEventListener('dragleave', handleDragLeave);
+    });
+    
+    // Attach listeners to task lists (drop zones for tasks)
+    document.querySelectorAll('.task-list').forEach(list => {
+        list.addEventListener('dragover', handleDragOver);
+        list.addEventListener('drop', handleTaskDrop);
+        list.addEventListener('dragleave', handleDragLeave);
+    });
+    
+    // Attach listeners to section containers (drop zones for groups)
+    document.querySelectorAll('#todayTasks, #longtermTasks').forEach(container => {
+        container.addEventListener('dragover', handleSectionDragOver);
+        container.addEventListener('drop', handleSectionDrop);
+        container.addEventListener('dragleave', handleDragLeave);
+    });
+}
+
+function handleSectionDragOver(e) {
+    if (draggedType !== 'group') return false;
+    
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    this.classList.add('drag-over-list');
+    return false;
+}
+
+function handleSectionDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (draggedType !== 'group' || !draggedElement) return false;
+    
+    const dropContainer = this;
+    const dropSection = dropContainer.id === 'todayTasks' ? 'today' : 'longterm';
+    const draggedSection = draggedElement.dataset.section;
+    const draggedGroupIndex = parseInt(draggedElement.dataset.groupIndex);
+    
+    if (draggedSection === dropSection) {
+        // Moving to end of section
+        const draggedGroup = taskData[draggedSection][draggedGroupIndex];
+        taskData[draggedSection].splice(draggedGroupIndex, 1);
+        taskData[dropSection].push(draggedGroup);
+        
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+    
+    this.classList.remove('drag-over-list');
+    return false;
+}
+
+function handleGroupDragStart(e) {
+    // Prevent drag from starting on interactive elements
+    if (e.target.tagName === 'BUTTON' || 
+        e.target.closest('.group-actions') ||
+        e.target.closest('button') ||
+        e.target.closest('h2')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    draggedElement = this;
+    draggedType = 'group';
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleTaskDragStart(e) {
+    // Prevent drag from starting on interactive elements
+    if (e.target.tagName === 'BUTTON' || 
+        e.target.tagName === 'INPUT' || 
+        e.target.closest('.task-actions') ||
+        e.target.closest('.task-checkbox') ||
+        e.target.closest('button')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    draggedElement = this;
+    draggedType = 'task';
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Add drop zone highlight
+    if (draggedType === 'task' && (this.classList.contains('task-item') || this.classList.contains('task-list'))) {
+        if (this.classList.contains('task-item')) {
+            this.classList.add('drag-over');
+        } else if (this.classList.contains('task-list')) {
+            this.classList.add('drag-over-list');
+        }
+    } else if (draggedType === 'group' && this.classList.contains('task-group')) {
+        this.classList.add('drag-over');
+    }
+    
+    return false;
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over', 'drag-over-list');
+}
+
+function handleGroupDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (draggedType !== 'group' || !draggedElement) return false;
+    
+    const dropTarget = this;
+    const draggedSection = draggedElement.dataset.section;
+    const draggedGroupIndex = parseInt(draggedElement.dataset.groupIndex);
+    const dropSection = dropTarget.dataset.section;
+    const dropGroupIndex = parseInt(dropTarget.dataset.groupIndex);
+    
+    if (draggedSection === dropSection && draggedGroupIndex !== dropGroupIndex) {
+        // Reorder groups within same section
+        const draggedGroup = taskData[draggedSection][draggedGroupIndex];
+        
+        // Remove from original position
+        taskData[draggedSection].splice(draggedGroupIndex, 1);
+        
+        // Calculate new index (adjust if dragging down)
+        let newIndex = dropGroupIndex;
+        if (draggedGroupIndex < dropGroupIndex) {
+            newIndex = dropGroupIndex; // Already accounted for by removal
+        } else {
+            newIndex = dropGroupIndex;
+        }
+        
+        // Insert at new position
+        taskData[dropSection].splice(newIndex, 0, draggedGroup);
+        
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+    
+    this.classList.remove('drag-over');
+    return false;
+}
+
+function handleTaskDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (draggedType !== 'task' || !draggedElement) return false;
+    
+    const dropTarget = this;
+    const draggedSection = draggedElement.dataset.section;
+    const draggedGroupIndex = parseInt(draggedElement.dataset.groupIndex);
+    const draggedTaskIndex = parseInt(draggedElement.dataset.taskIndex);
+    
+    // Determine drop location
+    let dropSection, dropGroupIndex, dropTaskIndex;
+    
+    if (dropTarget.classList.contains('task-item')) {
+        // Dropping on another task
+        dropSection = dropTarget.dataset.section;
+        dropGroupIndex = parseInt(dropTarget.dataset.groupIndex);
+        dropTaskIndex = parseInt(dropTarget.dataset.taskIndex);
+    } else if (dropTarget.classList.contains('task-list')) {
+        // Dropping on task list (end of group)
+        dropSection = dropTarget.dataset.section;
+        dropGroupIndex = parseInt(dropTarget.dataset.groupIndex);
+        dropTaskIndex = taskData[dropSection][dropGroupIndex].tasks.length;
+    } else {
+        return false;
+    }
+    
+    // Get the dragged task
+    const draggedTask = taskData[draggedSection][draggedGroupIndex].tasks[draggedTaskIndex];
+    
+    // If moving within the same group, just reorder
+    if (draggedSection === dropSection && draggedGroupIndex === dropGroupIndex) {
+        // Remove from original position
+        taskData[draggedSection][draggedGroupIndex].tasks.splice(draggedTaskIndex, 1);
+        
+        // Calculate new index (adjust if dragging down)
+        let newIndex = dropTaskIndex;
+        if (draggedTaskIndex < dropTaskIndex) {
+            newIndex = dropTaskIndex - 1; // Account for removal
+        } else {
+            newIndex = dropTaskIndex;
+        }
+        
+        // Insert at new position
+        taskData[dropSection][dropGroupIndex].tasks.splice(newIndex, 0, draggedTask);
+    } else {
+        // Moving to a different group
+        taskData[draggedSection][draggedGroupIndex].tasks.splice(draggedTaskIndex, 1);
+        
+        // For cross-group moves, adjust index if needed
+        let newIndex = dropTaskIndex;
+        if (draggedSection === dropSection && draggedGroupIndex < dropGroupIndex) {
+            // Moving to a later group in same section, no adjustment needed
+        }
+        
+        taskData[dropSection][dropGroupIndex].tasks.splice(newIndex, 0, draggedTask);
+    }
+    
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+    
+    // Clean up
+    if (dropTarget.classList.contains('task-item')) {
+        dropTarget.classList.remove('drag-over');
+    } else {
+        dropTarget.classList.remove('drag-over-list');
+    }
+    
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    
+    // Remove all drag-over classes
+    document.querySelectorAll('.drag-over, .drag-over-list').forEach(el => {
+        el.classList.remove('drag-over', 'drag-over-list');
+    });
+    
+    draggedElement = null;
+    draggedType = null;
 }
 
 // Helper function to escape HTML
@@ -368,13 +640,19 @@ function renderTask(section, groupIndex, taskIndex, task) {
     if (!settings.showCompleted && task.completed) return '';
 
     return `
-        <div class="task-item ${task.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
+        <div class="task-item ${task.completed ? 'checked' : ''}" 
+             draggable="true" 
+             data-section="${section}" 
+             data-group-index="${groupIndex}" 
+             data-task-index="${taskIndex}"
+             onclick="event.stopPropagation()">
+            <span class="drag-handle-task" title="Drag to reorder">⋮⋮</span>
             <input type="checkbox"
                    class="task-checkbox"
                    ${task.completed ? 'checked' : ''}
                    onclick="toggleTask('${section}', ${groupIndex}, ${taskIndex})"
                    title="Mark as ${task.completed ? 'incomplete' : 'complete'}">
-            <div class="task-content" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
+            <div class="task-content" onclick="if(!event.defaultPrevented) editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">
                     ${task.emotionalWeight === 'light' ? '💨 ' : task.emotionalWeight === 'moderate' ? '⚖️ ' : task.emotionalWeight === 'heavy' ? '🎯 ' : ''}${escapeHtml(task.title)}
                     ${task.completed && task.actualMinutes && task.estimatedMinutes
