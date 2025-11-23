@@ -82,6 +82,7 @@ const initialData = {
 
 // Load data from localStorage or use initial data
 let taskData = JSON.parse(localStorage.getItem('taskData')) || initialData;
+let archivedTasks = JSON.parse(localStorage.getItem('archivedTasks')) || [];
 let settings = JSON.parse(localStorage.getItem('settings')) || {
     darkMode: false,
     showCompleted: true,
@@ -282,6 +283,12 @@ function renderTask(section, groupIndex, taskIndex, task) {
             <div class="task-content" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">
                     ${escapeHtml(task.title)}
+                    ${task.completed && task.actualMinutes && task.estimatedMinutes
+                        ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.actualMinutes}/${task.estimatedMinutes}min</span>`
+                        : task.estimatedMinutes
+                        ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.estimatedMinutes}min</span>`
+                        : ''
+                    }
                     ${task.dueDate ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">📅 ${task.dueDate}</span>` : ''}
                 </div>
                 ${task.subtasks ? `
@@ -337,6 +344,7 @@ window.showNewTaskModal = function() {
     document.querySelector('input[name="newTaskSection"][value="today"]').checked = true;
     select.value = '';
     document.getElementById('newTaskDueDate').value = '';
+    document.getElementById('newTaskEstimate').value = '';
 
     // Show modal
     document.getElementById('newTaskModal').classList.add('active');
@@ -370,6 +378,7 @@ window.submitNewTask = function() {
     const section = document.querySelector('input[name="newTaskSection"]:checked').value;
     const projectValue = document.getElementById('newTaskProject').value;
     const dueDate = document.getElementById('newTaskDueDate').value;
+    const estimate = document.getElementById('newTaskEstimate').value;
 
     const newTask = {
         title: title,
@@ -378,6 +387,10 @@ window.submitNewTask = function() {
 
     if (dueDate) {
         newTask.dueDate = dueDate;
+    }
+
+    if (estimate && parseInt(estimate) > 0) {
+        newTask.estimatedMinutes = parseInt(estimate);
     }
 
     if (projectValue) {
@@ -402,9 +415,44 @@ window.submitNewTask = function() {
 }
 
 // Toggle task completion
-window.toggleTask = function(section, groupIndex, taskIndex) {
+window.toggleTask = async function(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
-    task.completed = !task.completed;
+
+    // If completing the task, prompt for actual time
+    if (!task.completed) {
+        task.completed = true;
+
+        // Prompt for actual time if there's an estimate
+        if (task.estimatedMinutes) {
+            const actualTime = await showCustomModal(
+                '⏱️ Time Tracking',
+                `How long did "${task.title}" actually take?\n\nEstimated: ${task.estimatedMinutes} minutes`,
+                task.estimatedMinutes.toString()
+            );
+
+            if (actualTime && parseInt(actualTime) > 0) {
+                task.actualMinutes = parseInt(actualTime);
+
+                // Show comparison
+                const diff = task.actualMinutes - task.estimatedMinutes;
+                const diffText = diff > 0
+                    ? `${diff} min over estimate`
+                    : diff < 0
+                    ? `${Math.abs(diff)} min under estimate`
+                    : 'Right on time!';
+
+                const accuracy = diff === 0 ? '🎯' : Math.abs(diff) <= 5 ? '✅' : '📊';
+
+                setTimeout(() => {
+                    alert(`${accuracy} Task completed!\n\nEstimated: ${task.estimatedMinutes} min\nActual: ${task.actualMinutes} min\n${diffText}`);
+                }, 100);
+            }
+        }
+    } else {
+        // Uncompleting - just toggle
+        task.completed = false;
+    }
+
     saveData();
     renderTasks();
     updateStats();
@@ -471,6 +519,7 @@ window.editTask = function(section, groupIndex, taskIndex) {
     // Populate modal
     document.getElementById('taskEditTitle').value = task.title;
     document.getElementById('taskEditDueDate').value = task.dueDate || '';
+    document.getElementById('taskEditEstimate').value = task.estimatedMinutes || '';
 
     // Populate project dropdown
     const projectSelect = document.getElementById('taskEditProject');
@@ -600,6 +649,14 @@ window.submitTaskEdit = function() {
         task.dueDate = newDueDate;
     } else {
         delete task.dueDate;
+    }
+
+    // Update estimated time
+    const newEstimate = document.getElementById('taskEditEstimate').value;
+    if (newEstimate && parseInt(newEstimate) > 0) {
+        task.estimatedMinutes = parseInt(newEstimate);
+    } else {
+        delete task.estimatedMinutes;
     }
 
     // Check if project changed
@@ -921,6 +978,150 @@ window.toggleSettings = function() {
     overlay.classList.toggle('active');
 }
 
+// Archive functions
+window.toggleArchive = function() {
+    const panel = document.getElementById('archivePanel');
+    const overlay = document.getElementById('overlay');
+    panel.classList.toggle('open');
+    overlay.classList.toggle('active');
+
+    if (panel.classList.contains('open')) {
+        renderArchive();
+    }
+}
+
+window.archiveCompleted = function() {
+    let archivedCount = 0;
+    const timestamp = new Date().toISOString();
+
+    // Go through all sections and groups
+    ['today', 'longterm'].forEach(section => {
+        taskData[section].forEach((group, groupIndex) => {
+            // Find completed tasks
+            const completedTasks = group.tasks.filter(task => task.completed);
+
+            if (completedTasks.length > 0) {
+                // Archive them with metadata
+                completedTasks.forEach(task => {
+                    archivedTasks.push({
+                        ...task,
+                        archivedDate: timestamp,
+                        originalProject: group.groupName,
+                        originalSection: section
+                    });
+                    archivedCount++;
+                });
+
+                // Remove completed tasks from the group
+                group.tasks = group.tasks.filter(task => !task.completed);
+            }
+        });
+
+        // Remove empty groups
+        taskData[section] = taskData[section].filter(group => group.tasks.length > 0);
+    });
+
+    if (archivedCount > 0) {
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+        alert(`✅ Archived ${archivedCount} completed task${archivedCount === 1 ? '' : 's'}!`);
+    } else {
+        alert('No completed tasks to archive.');
+    }
+}
+
+function renderArchive() {
+    const container = document.getElementById('archiveContent');
+
+    if (archivedTasks.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.7); padding: 40px;">No archived tasks yet.</p>';
+        return;
+    }
+
+    // Group by date
+    const groupedByDate = {};
+    archivedTasks.forEach(task => {
+        const date = new Date(task.archivedDate).toLocaleDateString();
+        if (!groupedByDate[date]) {
+            groupedByDate[date] = [];
+        }
+        groupedByDate[date].push(task);
+    });
+
+    let html = '';
+    Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
+        html += `
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: var(--text-primary); font-size: 14px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">
+                    📅 ${date}
+                </h4>
+        `;
+
+        groupedByDate[date].forEach((task, index) => {
+            html += `
+                <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="flex: 1;">
+                        <div style="color: var(--text-primary); font-size: 14px;">${escapeHtml(task.title)}</div>
+                        <div style="color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 4px;">
+                            ${task.originalProject} • ${task.originalSection === 'today' ? '⚡ Today' : '📅 Long-term'}
+                            ${task.dueDate ? ` • Due: ${task.dueDate}` : ''}
+                        </div>
+                    </div>
+                    <button onclick="unarchiveTask(${archivedTasks.indexOf(task)})"
+                            style="padding: 6px 12px; background: rgba(102, 126, 234, 0.2); color: #667eea; border: 1px solid #667eea; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                        Restore
+                    </button>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+window.unarchiveTask = function(index) {
+    const task = archivedTasks[index];
+
+    // Find or create the original project
+    let group = taskData[task.originalSection].find(g => g.groupName === task.originalProject);
+    if (!group) {
+        group = { groupName: task.originalProject, tasks: [] };
+        taskData[task.originalSection].push(group);
+    }
+
+    // Remove archive metadata and add back to project
+    const restoredTask = {
+        title: task.title,
+        completed: false, // Restore as incomplete
+        ...(task.dueDate && { dueDate: task.dueDate }),
+        ...(task.subtasks && { subtasks: task.subtasks })
+    };
+
+    group.tasks.push(restoredTask);
+
+    // Remove from archive
+    archivedTasks.splice(index, 1);
+
+    saveData();
+    renderTasks();
+    renderArchive();
+    updateStats();
+    updateProgress();
+}
+
+window.clearArchive = function() {
+    if (confirm(`Are you sure you want to permanently delete all ${archivedTasks.length} archived tasks?\n\nThis action cannot be undone.`)) {
+        archivedTasks = [];
+        localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
+        renderArchive();
+        alert('Archive cleared.');
+    }
+}
+
 // Close panels when clicking overlay
 document.getElementById('overlay').addEventListener('click', function() {
     document.getElementById('statsPanel').classList.remove('open');
@@ -948,6 +1149,7 @@ window.clearAllData = function() {
 // Save data to localStorage
 function saveData() {
     localStorage.setItem('taskData', JSON.stringify(taskData));
+    localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
     localStorage.setItem('settings', JSON.stringify(settings));
 }
 
