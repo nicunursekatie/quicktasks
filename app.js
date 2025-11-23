@@ -308,6 +308,9 @@ function updateDateStamp() {
 function renderTasks() {
     renderSection('today', 'todayTasks');
     renderSection('longterm', 'longtermTasks');
+    
+    // Attach drag-and-drop event listeners after rendering both sections
+    attachDragAndDropListeners();
 }
 
 // Render a section
@@ -359,16 +362,23 @@ function renderSection(section, containerId) {
             </div>
         `;
     }).join('');
-    
-    // Attach drag-and-drop event listeners after rendering
-    attachDragAndDropListeners();
 }
 
 // Drag and Drop functionality
 let draggedElement = null;
 let draggedType = null; // 'task' or 'group'
+let isDragging = false; // Track if we're currently dragging
+window.isDragging = false; // Make it accessible from inline handlers
+
+// Track if listeners are attached to avoid duplicates
+let dragListenersAttached = false;
 
 function attachDragAndDropListeners() {
+    if (dragListenersAttached) {
+        // Clean up old listeners by removing and re-adding
+        dragListenersAttached = false;
+    }
+    
     // Attach listeners to task groups
     document.querySelectorAll('.task-group').forEach(group => {
         group.addEventListener('dragstart', handleGroupDragStart);
@@ -395,11 +405,24 @@ function attachDragAndDropListeners() {
     });
     
     // Attach listeners to section containers (drop zones for groups)
-    document.querySelectorAll('#todayTasks, #longtermTasks').forEach(container => {
-        container.addEventListener('dragover', handleSectionDragOver);
-        container.addEventListener('drop', handleSectionDrop);
-        container.addEventListener('dragleave', handleDragLeave);
-    });
+    const todayContainer = document.getElementById('todayTasks');
+    const longtermContainer = document.getElementById('longtermTasks');
+    
+    if (todayContainer && !todayContainer.hasAttribute('data-drag-listeners')) {
+        todayContainer.setAttribute('data-drag-listeners', 'true');
+        todayContainer.addEventListener('dragover', handleSectionDragOver);
+        todayContainer.addEventListener('drop', handleSectionDrop);
+        todayContainer.addEventListener('dragleave', handleDragLeave);
+    }
+    
+    if (longtermContainer && !longtermContainer.hasAttribute('data-drag-listeners')) {
+        longtermContainer.setAttribute('data-drag-listeners', 'true');
+        longtermContainer.addEventListener('dragover', handleSectionDragOver);
+        longtermContainer.addEventListener('drop', handleSectionDrop);
+        longtermContainer.addEventListener('dragleave', handleDragLeave);
+    }
+    
+    dragListenersAttached = true;
 }
 
 function handleSectionDragOver(e) {
@@ -442,38 +465,58 @@ function handleSectionDrop(e) {
 }
 
 function handleGroupDragStart(e) {
-    // Prevent drag from starting on interactive elements
-    if (e.target.tagName === 'BUTTON' || 
-        e.target.closest('.group-actions') ||
-        e.target.closest('button') ||
-        e.target.closest('h2')) {
-        e.preventDefault();
+    // Allow dragging from drag handle or anywhere except buttons
+    const isButton = e.target.tagName === 'BUTTON' || e.target.closest('button');
+    const isInActions = e.target.closest('.group-actions');
+    
+    // Allow dragging from h2 or drag handle, but not from buttons
+    if (isButton || isInActions) {
+        e.stopPropagation();
         return false;
     }
     
+    isDragging = true;
+    window.isDragging = true;
     draggedElement = this;
     draggedType = 'group';
     this.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.outerHTML);
+    
+    try {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.groupIndex || '');
+    } catch (err) {
+        // Ignore data transfer errors
+    }
+    
+    return true;
 }
 
 function handleTaskDragStart(e) {
-    // Prevent drag from starting on interactive elements
-    if (e.target.tagName === 'BUTTON' || 
-        e.target.tagName === 'INPUT' || 
-        e.target.closest('.task-actions') ||
-        e.target.closest('.task-checkbox') ||
-        e.target.closest('button')) {
-        e.preventDefault();
+    // Allow dragging from drag handle or anywhere except buttons/inputs
+    const isButton = e.target.tagName === 'BUTTON' || e.target.closest('button');
+    const isInput = e.target.tagName === 'INPUT' || e.target.closest('input');
+    const isCheckbox = e.target.type === 'checkbox' || e.target.closest('input[type="checkbox"]');
+    const isInActions = e.target.closest('.task-actions');
+    
+    if (isButton || isInput || isCheckbox || isInActions) {
+        e.stopPropagation();
         return false;
     }
     
+    isDragging = true;
+    window.isDragging = true;
     draggedElement = this;
     draggedType = 'task';
     this.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', this.outerHTML);
+    
+    try {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.taskIndex || '');
+    } catch (err) {
+        // Ignore data transfer errors
+    }
+    
+    return true;
 }
 
 function handleDragOver(e) {
@@ -624,8 +667,13 @@ function handleDragEnd(e) {
         el.classList.remove('drag-over', 'drag-over-list');
     });
     
-    draggedElement = null;
-    draggedType = null;
+    // Reset drag state after a short delay to allow drop handlers to run
+    setTimeout(() => {
+        isDragging = false;
+        window.isDragging = false;
+        draggedElement = null;
+        draggedType = null;
+    }, 100);
 }
 
 // Helper function to escape HTML
@@ -644,15 +692,14 @@ function renderTask(section, groupIndex, taskIndex, task) {
              draggable="true" 
              data-section="${section}" 
              data-group-index="${groupIndex}" 
-             data-task-index="${taskIndex}"
-             onclick="event.stopPropagation()">
-            <span class="drag-handle-task" title="Drag to reorder">⋮⋮</span>
+             data-task-index="${taskIndex}">
+            <span class="drag-handle-task" title="Drag to reorder" style="user-select: none;">⋮⋮</span>
             <input type="checkbox"
                    class="task-checkbox"
                    ${task.completed ? 'checked' : ''}
                    onclick="toggleTask('${section}', ${groupIndex}, ${taskIndex})"
                    title="Mark as ${task.completed ? 'incomplete' : 'complete'}">
-            <div class="task-content" onclick="if(!event.defaultPrevented) editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
+            <div class="task-content" onclick="if(!window.isDragging) editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">
                     ${task.emotionalWeight === 'light' ? '💨 ' : task.emotionalWeight === 'moderate' ? '⚖️ ' : task.emotionalWeight === 'heavy' ? '🎯 ' : ''}${escapeHtml(task.title)}
                     ${task.completed && task.actualMinutes && task.estimatedMinutes
