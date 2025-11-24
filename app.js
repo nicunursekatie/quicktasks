@@ -123,6 +123,8 @@ let unsubscribe = null;
 // Focus mode timer
 let focusTimer = null;
 let focusAlertInterval = null;
+let focusStartTime = null; // Track when focus mode started
+let lastAlertTime = null; // Track when last alert was shown
 
 // Custom Modal System
 let modalResolve = null;
@@ -1845,9 +1847,60 @@ function startFocusTimer() {
     
     const intervalMs = settings.activeTask.alertInterval * 60 * 1000; // Convert minutes to milliseconds
     
+    // Initialize or restore timing
+    const now = Date.now();
+    if (!settings.activeTask.startTime) {
+        settings.activeTask.startTime = now;
+    }
+    if (!settings.activeTask.lastAlertTime) {
+        settings.activeTask.lastAlertTime = settings.activeTask.startTime;
+    }
+    
+    // Store in global variables for quick access
+    focusStartTime = settings.activeTask.startTime;
+    lastAlertTime = settings.activeTask.lastAlertTime;
+    
+    // Use a more frequent check interval (every 30 seconds) to catch up if tab was in background
+    const checkInterval = 30000; // Check every 30 seconds
+    
     focusTimer = setInterval(() => {
+        checkFocusAlert(intervalMs);
+    }, checkInterval);
+    
+    // Also check immediately when tab becomes visible (handles background tab case)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Check immediately on start (in case we're resuming from a page reload)
+    checkFocusAlert(intervalMs);
+}
+
+function handleVisibilityChange() {
+    if (document.visibilityState === 'visible' && settings.activeTask && settings.activeTask.alertInterval) {
+        // Tab became visible - check if we missed any alerts
+        const intervalMs = settings.activeTask.alertInterval * 60 * 1000;
+        checkFocusAlert(intervalMs);
+    }
+}
+
+function checkFocusAlert(intervalMs) {
+    if (!settings.activeTask) {
+        clearFocusTimer();
+        return;
+    }
+    
+    const now = Date.now();
+    
+    // Use stored time from activeTask (persists across reloads) or fall back to global
+    const storedLastAlert = settings.activeTask.lastAlertTime || lastAlertTime || settings.activeTask.startTime || focusStartTime || now;
+    
+    // Calculate time since last alert
+    const timeSinceLastAlert = now - storedLastAlert;
+    
+    // If enough time has passed, show alert
+    if (timeSinceLastAlert >= intervalMs) {
         showFocusAlert();
-    }, intervalMs);
+        // lastAlertTime is updated inside showFocusAlert
+    }
 }
 
 function clearFocusTimer() {
@@ -1855,6 +1908,9 @@ function clearFocusTimer() {
         clearInterval(focusTimer);
         focusTimer = null;
     }
+    focusStartTime = null;
+    lastAlertTime = null;
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
 }
 
 function showFocusAlert() {
@@ -1875,6 +1931,14 @@ function showFocusAlert() {
     
     const task = taskData[section][groupIndex].tasks[taskIndex];
     const taskTitle = task.title;
+    
+    // Update last alert time (both in global and in settings for persistence)
+    const now = Date.now();
+    lastAlertTime = now;
+    if (settings.activeTask) {
+        settings.activeTask.lastAlertTime = now;
+        saveData(); // Save to persist across page reloads
+    }
     
     // Show browser notification (works even when tab is in background)
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -2226,7 +2290,9 @@ window.toggleFocusTask = function(section, groupIndex, taskIndex) {
                 groupIndex,
                 taskIndex,
                 alertInterval,
-                websiteUrl
+                websiteUrl,
+                startTime: Date.now(), // Store when focus started
+                lastAlertTime: Date.now() // Store when last alert was shown
             };
             
             startFocusTimer();
