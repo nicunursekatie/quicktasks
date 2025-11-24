@@ -2372,6 +2372,48 @@
         window.firebaseDB = db;
     </script>
 
+    <!-- Focus Mode Setup Modal -->
+    <div id="focusSetupModal" class="custom-modal">
+        <div class="custom-modal-content" style="max-width: 500px;">
+            <div class="custom-modal-header">
+                <h3>🎯 Focus Mode Setup</h3>
+                <button class="modal-close-btn" onclick="closeFocusSetupModal()">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 8px;">Task:</div>
+                    <div style="padding: 12px; background: rgba(102, 126, 234, 0.1); border-radius: 8px; color: #333; font-size: 15px;" id="focusSetupTaskTitle"></div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Alert Interval (minutes)</label>
+                    <input type="number" id="focusAlertIntervalInput" 
+                           min="5" max="15" step="5" value="10"
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; font-family: inherit; text-align: center; font-weight: 600;"
+                           placeholder="5, 10, or 15">
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button onclick="setFocusInterval(5)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 1; padding: 8px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s;">5 min</button>
+                        <button onclick="setFocusInterval(10)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 1; padding: 8px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s;">10 min</button>
+                        <button onclick="setFocusInterval(15)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 1; padding: 8px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s;">15 min</button>
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">🌐 Link Website (Optional)</label>
+                    <input type="url" id="focusWebsiteUrlInput" 
+                           list="focusUrlSuggestions"
+                           autocomplete="url"
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit;"
+                           placeholder="https://example.com">
+                    <datalist id="focusUrlSuggestions"></datalist>
+                    <div style="font-size: 12px; color: #666; margin-top: 6px;">We'll remember your frequently used URLs</div>
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeFocusSetupModal()">Cancel</button>
+                <button class="modal-btn modal-btn-submit" onclick="submitFocusSetup()">Start Focusing</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="app.js"></script>
 </body>
 </html>

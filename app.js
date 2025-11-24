@@ -113,7 +113,8 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
     anthropicApiKey: '',
     aiProvider: 'gemini',
     focusAlertInterval: 10, // minutes: 5, 10, or 15
-    activeTask: null // { section, groupIndex, taskIndex, websiteUrl, alertInterval }
+    activeTask: null, // { section, groupIndex, taskIndex, websiteUrl, alertInterval }
+    savedUrls: [] // Array of previously used URLs for autocomplete
 };
 
 let currentUser = null;
@@ -1977,30 +1978,232 @@ function showFocusAlertDialog(section, groupIndex, taskIndex, taskTitle, website
     
     document.body.appendChild(alertDiv);
     
-    // Handle button clicks
-    document.getElementById('focusAlertContinue').onclick = () => {
+    // Use event delegation to handle button clicks (more reliable)
+    const handleContinue = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         removeDialog();
         // Timer continues automatically
     };
     
-    document.getElementById('focusAlertStop').onclick = () => {
+    const handleStop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         removeDialog();
         // Stop focusing
         toggleFocusTask(section, groupIndex, taskIndex);
     };
     
-    // Focus on continue button for keyboard accessibility
-    setTimeout(() => document.getElementById('focusAlertContinue').focus(), 100);
+    // Attach event listeners after a brief delay to ensure DOM is ready
+    setTimeout(() => {
+        const continueBtn = document.getElementById('focusAlertContinue');
+        const stopBtn = document.getElementById('focusAlertStop');
+        
+        if (continueBtn) {
+            continueBtn.addEventListener('click', handleContinue, { once: true });
+            continueBtn.focus(); // Focus for keyboard accessibility
+        }
+        
+        if (stopBtn) {
+            stopBtn.addEventListener('click', handleStop, { once: true });
+        }
+    }, 10);
     
     // Close dialog when clicking outside (optional)
-    alertDiv.onclick = (e) => {
+    alertDiv.addEventListener('click', (e) => {
         if (e.target === alertDiv) {
             removeDialog();
+        }
+    });
+}
+
+// Focus mode setup modal functions
+let focusSetupCallback = null;
+let focusSetupTaskInfo = null;
+
+window.setFocusInterval = function(minutes) {
+    const input = document.getElementById('focusAlertIntervalInput');
+    if (input) {
+        input.value = minutes;
+        // Highlight the selected button
+        const buttons = input.parentElement.querySelectorAll('button');
+        buttons.forEach((btn, index) => {
+            btn.classList.remove('selected');
+            btn.style.background = 'rgba(102, 126, 234, 0.1)';
+            btn.style.color = '#667eea';
+            // Check if this button matches the selected value
+            const buttonValue = index === 0 ? 5 : index === 1 ? 10 : 15;
+            if (buttonValue === minutes) {
+                btn.classList.add('selected');
+                btn.style.background = '#667eea';
+                btn.style.color = 'white';
+            }
+        });
+    }
+}
+
+window.showFocusSetupModal = function(section, groupIndex, taskIndex, callback) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    focusSetupTaskInfo = { section, groupIndex, taskIndex };
+    focusSetupCallback = callback;
+    
+    document.getElementById('focusSetupTaskTitle').textContent = task.title;
+    const intervalInput = document.getElementById('focusAlertIntervalInput');
+    const defaultInterval = settings.focusAlertInterval || 10;
+    intervalInput.value = defaultInterval;
+    document.getElementById('focusWebsiteUrlInput').value = '';
+    
+    // Load URL suggestions
+    updateUrlSuggestions();
+    
+    // Set initial button selection based on default interval
+    setFocusInterval(defaultInterval);
+    
+    document.getElementById('focusSetupModal').classList.add('active');
+    intervalInput.focus();
+    
+    // Handle Enter key on inputs
+    intervalInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('focusWebsiteUrlInput').focus();
+        } else {
+            // Update button selection when typing
+            const val = parseInt(e.target.value);
+            if (!isNaN(val) && [5, 10, 15].includes(val)) {
+                setFocusInterval(val);
+            }
+        }
+    };
+    
+    intervalInput.oninput = (e) => {
+        const val = parseInt(e.target.value);
+        if (!isNaN(val) && [5, 10, 15].includes(val)) {
+            setFocusInterval(val);
+        }
+    };
+    
+    document.getElementById('focusWebsiteUrlInput').onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            submitFocusSetup();
         }
     };
 }
 
-window.toggleFocusTask = async function(section, groupIndex, taskIndex) {
+window.closeFocusSetupModal = function() {
+    document.getElementById('focusSetupModal').classList.remove('active');
+    focusSetupCallback = null;
+    focusSetupTaskInfo = null;
+}
+
+window.submitFocusSetup = function() {
+    if (!focusSetupTaskInfo) return;
+    
+    const intervalInput = document.getElementById('focusAlertIntervalInput').value;
+    const websiteInput = document.getElementById('focusWebsiteUrlInput').value.trim();
+    
+    let alertInterval = parseInt(intervalInput);
+    if (isNaN(alertInterval) || ![5, 10, 15].includes(alertInterval)) {
+        showCustomAlert('Please enter a valid interval: 5, 10, or 15 minutes.');
+        return;
+    }
+    
+    let websiteUrl = null;
+    if (websiteInput !== '') {
+        // Validate and format URL
+        let url = websiteInput;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        try {
+            new URL(url); // Validate URL
+            websiteUrl = url;
+            
+            // Save URL to suggestions
+            if (!settings.savedUrls) {
+                settings.savedUrls = [];
+            }
+            if (!settings.savedUrls.includes(url)) {
+                settings.savedUrls.push(url);
+                // Keep only last 10 URLs
+                if (settings.savedUrls.length > 10) {
+                    settings.savedUrls = settings.savedUrls.slice(-10);
+                }
+                saveData();
+            }
+        } catch (e) {
+            showCustomAlert('Invalid URL format. Please enter a valid URL (e.g., example.com or https://example.com)');
+            return;
+        }
+    }
+    
+    closeFocusSetupModal();
+    
+    if (focusSetupCallback) {
+        focusSetupCallback(alertInterval, websiteUrl);
+    }
+}
+
+function updateUrlSuggestions() {
+    const datalist = document.getElementById('focusUrlSuggestions');
+    if (!datalist) return;
+    
+    datalist.innerHTML = '';
+    
+    if (settings.savedUrls && settings.savedUrls.length > 0) {
+        settings.savedUrls.forEach(url => {
+            const option = document.createElement('option');
+            option.value = url;
+            datalist.appendChild(option);
+        });
+    }
+}
+
+// Custom styled alert function (replaces native alert)
+function showCustomAlert(message, title = '⚠️') {
+    const alertDiv = document.createElement('div');
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+        backdrop-filter: blur(20px);
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 15px 45px rgba(0,0,0,0.5);
+        z-index: 10001;
+        max-width: 400px;
+        text-align: center;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+    `;
+    
+    alertDiv.innerHTML = `
+        <div style="font-size: 24px; margin-bottom: 15px;">${title}</div>
+        <div style="font-size: 16px; font-weight: 500; color: white; margin-bottom: 20px; line-height: 1.5;">
+            ${message.replace(/\n/g, '<br>')}
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" 
+                style="padding: 10px 30px; background: rgba(255, 255, 255, 0.9); color: #333; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 16px;">
+            OK
+        </button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-focus button
+    setTimeout(() => alertDiv.querySelector('button').focus(), 100);
+    
+    // Close on Escape
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+            alertDiv.remove();
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+}
+
+window.toggleFocusTask = function(section, groupIndex, taskIndex) {
     // Check if this is already the active task
     const isCurrentlyActive = settings.activeTask &&
         settings.activeTask.section === section &&
@@ -2013,66 +2216,31 @@ window.toggleFocusTask = async function(section, groupIndex, taskIndex) {
         clearFocusTimer();
         saveData();
         renderTasks();
-        alert('🎯 Focus mode stopped for this task.');
+        showCustomAlert('Focus mode stopped for this task.', '🎯');
     } else {
-        // Start focusing on this task - show setup dialog
-        const task = taskData[section][groupIndex].tasks[taskIndex];
-        
-        // Ask for alert interval
-        const intervalInput = await showCustomModal(
-            '🎯 Focus Mode Setup',
-            `Task: "${task.title}"\n\nHow often should we check in?\n\nEnter: 5, 10, or 15 (minutes)`,
-            '10'
-        );
-        
-        if (intervalInput === null) return; // User cancelled
-        
-        let alertInterval = parseInt(intervalInput);
-        if (isNaN(alertInterval) || ![5, 10, 15].includes(alertInterval)) {
-            alertInterval = 10; // Default to 10 minutes
-        }
-        
-        // Ask for website URL (optional)
-        const websiteInput = await showCustomModal(
-            '🌐 Link Website (Optional)',
-            `Do you want to link a specific website for this task?\n\nEnter the URL (e.g., https://example.com)\nOr leave blank to skip.`,
-            ''
-        );
-        
-        let websiteUrl = null;
-        if (websiteInput !== null && websiteInput.trim() !== '') {
-            // Validate and format URL
-            let url = websiteInput.trim();
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                url = 'https://' + url;
+        // Show setup modal
+        showFocusSetupModal(section, groupIndex, taskIndex, (alertInterval, websiteUrl) => {
+            // Start focusing
+            settings.activeTask = {
+                section,
+                groupIndex,
+                taskIndex,
+                alertInterval,
+                websiteUrl
+            };
+            
+            startFocusTimer();
+            saveData();
+            renderTasks();
+            
+            // Show confirmation
+            const task = taskData[section][groupIndex].tasks[taskIndex];
+            let confirmMsg = `Now focusing on: "${task.title}"<br><br>You'll receive alerts every ${alertInterval} minutes.`;
+            if (websiteUrl) {
+                confirmMsg += `<br><br>🌐 Website linked: ${websiteUrl}`;
             }
-            try {
-                new URL(url); // Validate URL
-                websiteUrl = url;
-            } catch (e) {
-                alert('Invalid URL format. Focus mode will continue without website link.');
-            }
-        }
-        
-        // Start focusing
-        settings.activeTask = {
-            section,
-            groupIndex,
-            taskIndex,
-            alertInterval,
-            websiteUrl
-        };
-        
-        startFocusTimer();
-        saveData();
-        renderTasks();
-        
-        // Show confirmation
-        let confirmMsg = `🎯 Now focusing on: "${task.title}"\n\nYou'll receive alerts every ${alertInterval} minutes.`;
-        if (websiteUrl) {
-            confirmMsg += `\n\n🌐 Website linked: ${websiteUrl}`;
-        }
-        alert(confirmMsg);
+            showCustomAlert(confirmMsg, '🎯');
+        });
     }
 }
 
