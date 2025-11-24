@@ -2329,10 +2329,13 @@ window.submitFocusSetup = function() {
         }
     }
     
-    closeFocusSetupModal();
-    
+    // Execute callback BEFORE closing modal (which nullifies the callback)
     if (focusSetupCallback) {
-        focusSetupCallback(alertInterval, websiteUrl);
+        const callback = focusSetupCallback; // Store reference before closing
+        closeFocusSetupModal();
+        callback(alertInterval, websiteUrl);
+    } else {
+        closeFocusSetupModal();
     }
 }
 
@@ -2375,7 +2378,7 @@ function showCustomAlert(message, title = '⚠️') {
         <div style="font-size: 16px; font-weight: 500; color: white; margin-bottom: 20px; line-height: 1.5;">
             ${message.replace(/\n/g, '<br>')}
         </div>
-        <button onclick="this.parentElement.parentElement.remove()" 
+        <button onclick="this.parentElement.remove()" 
                 style="padding: 10px 30px; background: rgba(255, 255, 255, 0.9); color: #333; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 16px;">
             OK
         </button>
