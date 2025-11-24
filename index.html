@@ -137,10 +137,94 @@
             transform: translateY(0) scale(0.98);
         }
 
+        /* Focus Mode Banner */
+        .focus-banner {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #fff176 100%);
+            border-bottom: 3px solid rgba(255, 215, 0, 0.8);
+            padding: 20px 30px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
+            animation: focusPulse 3s ease-in-out infinite;
+            position: relative;
+            z-index: 100;
+        }
+        
+        .focus-banner.hidden {
+            display: none;
+        }
+        
+        .focus-banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .focus-banner-icon {
+            font-size: 36px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+        
+        .focus-banner-text {
+            font-size: 32px;
+            font-weight: 900;
+            color: #1a1a1a;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);
+            letter-spacing: 0.5px;
+        }
+        
+        .focus-banner-task {
+            font-size: 36px;
+            font-weight: 900;
+            color: #1a1a1a;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);
+            letter-spacing: 0.5px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .focus-banner-stop {
+            background: rgba(255, 107, 107, 0.9);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .focus-banner-stop:hover {
+            background: rgba(255, 107, 107, 1);
+            transform: scale(1.05);
+        }
+        
+        @keyframes focusPulse {
+            0%, 100% { 
+                box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
+            }
+            50% { 
+                box-shadow: 0 4px 30px rgba(255, 215, 0, 0.7);
+            }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
         /* Main Layout */
         .main-container {
             display: flex;
             height: calc(100vh - 64px);
+            transition: height 0.3s ease;
+        }
+        
+        .main-container.with-focus-banner {
+            height: calc(100vh - 64px - 110px);
         }
 
         /* Central Task Area */
@@ -1821,7 +1905,17 @@
         </div>
     </div>
 
-    <div class="main-container">
+    <!-- Focus Mode Banner -->
+    <div class="focus-banner hidden" id="focusBanner">
+        <div class="focus-banner-content">
+            <span class="focus-banner-icon">🎯</span>
+            <span class="focus-banner-text">FOCUSING ON:</span>
+            <span class="focus-banner-task" id="focusBannerTask"></span>
+            <button class="focus-banner-stop" id="focusBannerStop" onclick="stopFocusFromBanner()">Stop Focus</button>
+        </div>
+    </div>
+
+    <div class="main-container" id="mainContainer">
         <!-- Central Task Area -->
         <div class="tasks-center">
             <div class="container">

@@ -366,14 +366,58 @@ function renderTasks() {
     renderSection('today', 'todayTasks');
     renderSection('longterm', 'longtermTasks');
     
+    // Update focus banner
+    updateFocusBanner();
+    
     // Attach drag-and-drop event listeners after rendering both sections
     attachDragAndDropListeners();
+}
+
+// Update focus mode banner
+function updateFocusBanner() {
+    const banner = document.getElementById('focusBanner');
+    const bannerTask = document.getElementById('focusBannerTask');
+    const mainContainer = document.getElementById('mainContainer');
+    
+    if (!banner || !bannerTask) return;
+    
+    if (settings.activeTask) {
+        const { section, groupIndex, taskIndex } = settings.activeTask;
+        
+        // Verify task still exists
+        if (taskData[section] && taskData[section][groupIndex] && taskData[section][groupIndex].tasks[taskIndex]) {
+            const task = taskData[section][groupIndex].tasks[taskIndex];
+            bannerTask.textContent = task.title.toUpperCase();
+            banner.classList.remove('hidden');
+            if (mainContainer) {
+                mainContainer.classList.add('with-focus-banner');
+            }
+            return;
+        } else {
+            // Task no longer exists, clear focus
+            settings.activeTask = null;
+            saveData();
+        }
+    }
+    
+    // No active task - hide banner
+    banner.classList.add('hidden');
+    if (mainContainer) {
+        mainContainer.classList.remove('with-focus-banner');
+    }
+}
+
+window.stopFocusFromBanner = function() {
+    if (settings.activeTask) {
+        const { section, groupIndex, taskIndex } = settings.activeTask;
+        toggleFocusTask(section, groupIndex, taskIndex);
+    }
 }
 
 // Render a section
 function renderSection(section, containerId) {
     const container = document.getElementById(containerId);
-    const groups = taskData[section];
+    let groups = taskData[section];
 
     if (!groups || groups.length === 0) {
         container.innerHTML = `
@@ -384,8 +428,36 @@ function renderSection(section, containerId) {
         `;
         return;
     }
+    
+    // Create a map to track original task indices for focused groups
+    const taskIndexMap = new Map();
 
     container.innerHTML = groups.map((group, groupIndex) => {
+        // Check if this group has the focused task
+        const hasFocusedTask = settings.activeTask && 
+                               settings.activeTask.section === section &&
+                               settings.activeTask.groupIndex === groupIndex;
+        
+        let tasksToRender = group.tasks;
+        
+        // If this group has the focused task, reorder tasks to put it first
+        if (hasFocusedTask && settings.activeTask.taskIndex >= 0 && settings.activeTask.taskIndex < group.tasks.length) {
+            tasksToRender = [...group.tasks];
+            const focusedTask = tasksToRender[settings.activeTask.taskIndex];
+            tasksToRender.splice(settings.activeTask.taskIndex, 1);
+            tasksToRender.unshift(focusedTask);
+            
+            // Create mapping: display index -> actual index
+            tasksToRender.forEach((task, displayIndex) => {
+                if (displayIndex === 0) {
+                    taskIndexMap.set(`${groupIndex}-${displayIndex}`, settings.activeTask.taskIndex);
+                } else if (displayIndex <= settings.activeTask.taskIndex) {
+                    taskIndexMap.set(`${groupIndex}-${displayIndex}`, displayIndex);
+                } else {
+                    taskIndexMap.set(`${groupIndex}-${displayIndex}`, displayIndex);
+                }
+            });
+        }
         const totalTasks = group.tasks.length;
         const completedTasks = group.tasks.filter(t => t.completed).length;
         const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
@@ -414,7 +486,20 @@ function renderSection(section, containerId) {
                     <div class="group-progress-fill" style="width: ${progress}%"></div>
                 </div>
                 <div class="task-list" data-section="${section}" data-group-index="${groupIndex}">
-                    ${group.tasks.map((task, taskIndex) => renderTask(section, groupIndex, taskIndex, task)).join('')}
+                    ${tasksToRender.map((task, displayIndex) => {
+                        // Map display index to actual index for data attributes
+                        let actualIndex = displayIndex;
+                        if (hasFocusedTask) {
+                            if (displayIndex === 0) {
+                                actualIndex = settings.activeTask.taskIndex;
+                            } else if (displayIndex <= settings.activeTask.taskIndex) {
+                                actualIndex = displayIndex - 1;
+                            } else {
+                                actualIndex = displayIndex;
+                            }
+                        }
+                        return renderTask(section, groupIndex, actualIndex, task);
+                    }).join('')}
                 </div>
             </div>
         `;
