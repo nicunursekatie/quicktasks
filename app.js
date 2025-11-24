@@ -1918,6 +1918,7 @@ function startFocusTimer() {
     clearFocusTimer(); // Clear any existing timer
     
     if (!settings.activeTask || !settings.activeTask.alertInterval) {
+        console.log('⚠️ Cannot start focus timer: no active task or interval');
         return;
     }
     
@@ -1925,44 +1926,57 @@ function startFocusTimer() {
     const { section, groupIndex, taskIndex } = settings.activeTask;
     if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
         // Task no longer exists, clear focus
+        console.log('⚠️ Focus task no longer exists, clearing focus');
         settings.activeTask = null;
         saveData();
         return;
     }
     
     const intervalMs = settings.activeTask.alertInterval * 60 * 1000; // Convert minutes to milliseconds
-    
-    // Initialize or restore timing
     const now = Date.now();
+    
+    // Initialize timing - if this is a new focus session, set start time
+    // If resuming, use existing start time but reset lastAlertTime to now so we wait full interval
     if (!settings.activeTask.startTime) {
+        // New focus session - start counting from now
         settings.activeTask.startTime = now;
-    }
-    if (!settings.activeTask.lastAlertTime) {
-        settings.activeTask.lastAlertTime = settings.activeTask.startTime;
+        settings.activeTask.lastAlertTime = now; // First alert will be after full interval
+        console.log('✅ Starting new focus session, first alert in', settings.activeTask.alertInterval, 'minutes');
+    } else {
+        // Resuming - keep start time but update lastAlertTime to now to wait full interval
+        settings.activeTask.lastAlertTime = now;
+        console.log('✅ Resuming focus session, next alert in', settings.activeTask.alertInterval, 'minutes');
     }
     
     // Store in global variables for quick access
     focusStartTime = settings.activeTask.startTime;
     lastAlertTime = settings.activeTask.lastAlertTime;
     
-    // Use a more frequent check interval (every 30 seconds) to catch up if tab was in background
-    const checkInterval = 30000; // Check every 30 seconds
+    // Save the updated timing
+    saveData();
+    
+    // Use a more frequent check interval (every 10 seconds) to catch up if tab was in background
+    const checkInterval = 10000; // Check every 10 seconds for better responsiveness
     
     focusTimer = setInterval(() => {
         checkFocusAlert(intervalMs);
     }, checkInterval);
     
-    // Also check immediately when tab becomes visible (handles background tab case)
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    console.log('✅ Focus timer started, checking every', checkInterval / 1000, 'seconds');
     
-    // Check immediately on start (in case we're resuming from a page reload)
-    checkFocusAlert(intervalMs);
+    // Also check when tab becomes visible (handles background tab case)
+    // Use a named function to prevent duplicate listeners
+    if (!window._focusVisibilityHandler) {
+        window._focusVisibilityHandler = handleVisibilityChange;
+        document.addEventListener('visibilitychange', window._focusVisibilityHandler);
+    }
 }
 
 function handleVisibilityChange() {
     if (document.visibilityState === 'visible' && settings.activeTask && settings.activeTask.alertInterval) {
         // Tab became visible - check if we missed any alerts
         const intervalMs = settings.activeTask.alertInterval * 60 * 1000;
+        console.log('👁️ Tab became visible, checking for missed alerts');
         checkFocusAlert(intervalMs);
     }
 }
@@ -1973,16 +1987,34 @@ function checkFocusAlert(intervalMs) {
         return;
     }
     
+    // Verify task still exists
+    const { section, groupIndex, taskIndex } = settings.activeTask;
+    if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
+        console.log('⚠️ Focus task no longer exists during check');
+        settings.activeTask = null;
+        saveData();
+        clearFocusTimer();
+        return;
+    }
+    
     const now = Date.now();
     
-    // Use stored time from activeTask (persists across reloads) or fall back to global
-    const storedLastAlert = settings.activeTask.lastAlertTime || lastAlertTime || settings.activeTask.startTime || focusStartTime || now;
+    // Always use the stored time from activeTask (persists across reloads)
+    const storedLastAlert = settings.activeTask.lastAlertTime || now;
     
     // Calculate time since last alert
     const timeSinceLastAlert = now - storedLastAlert;
+    const minutesSinceLastAlert = Math.floor(timeSinceLastAlert / 60000);
+    const requiredMinutes = settings.activeTask.alertInterval;
+    
+    // Debug logging (only log occasionally to avoid spam)
+    if (Math.random() < 0.01) { // Log 1% of checks
+        console.log(`⏱️ Focus check: ${minutesSinceLastAlert}/${requiredMinutes} minutes elapsed`);
+    }
     
     // If enough time has passed, show alert
     if (timeSinceLastAlert >= intervalMs) {
+        console.log('🔔 Time for focus alert!');
         showFocusAlert();
         // lastAlertTime is updated inside showFocusAlert
     }
@@ -1992,14 +2024,23 @@ function clearFocusTimer() {
     if (focusTimer) {
         clearInterval(focusTimer);
         focusTimer = null;
+        console.log('🛑 Focus timer cleared');
     }
     focusStartTime = null;
     lastAlertTime = null;
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Remove visibility change listener if it exists
+    if (window._focusVisibilityHandler) {
+        document.removeEventListener('visibilitychange', window._focusVisibilityHandler);
+        window._focusVisibilityHandler = null;
+    }
 }
 
 function showFocusAlert() {
+    console.log('🔔 showFocusAlert called');
+    
     if (!settings.activeTask) {
+        console.log('⚠️ No active task in showFocusAlert');
         clearFocusTimer();
         return;
     }
@@ -2008,6 +2049,7 @@ function showFocusAlert() {
     
     // Verify task still exists
     if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
+        console.log('⚠️ Task no longer exists in showFocusAlert');
         settings.activeTask = null;
         saveData();
         clearFocusTimer();
@@ -2017,7 +2059,9 @@ function showFocusAlert() {
     const task = taskData[section][groupIndex].tasks[taskIndex];
     const taskTitle = task.title;
     
-    // Update last alert time (both in global and in settings for persistence)
+    console.log('✅ Showing alert for task:', taskTitle);
+    
+    // Update last alert time BEFORE showing alert (prevents rapid-fire alerts)
     const now = Date.now();
     lastAlertTime = now;
     if (settings.activeTask) {
@@ -2353,11 +2397,16 @@ function showCustomAlert(message, title = '⚠️') {
 }
 
 window.toggleFocusTask = function(section, groupIndex, taskIndex) {
-    // Check if this is already the active task
+    // IMPORTANT: When tasks are reordered, the focused task is moved to index 0
+    // So we need to check if the current taskIndex matches the stored one OR if it's at index 0
     const isCurrentlyActive = settings.activeTask &&
         settings.activeTask.section === section &&
         settings.activeTask.groupIndex === groupIndex &&
-        settings.activeTask.taskIndex === taskIndex;
+        (settings.activeTask.taskIndex === taskIndex || 
+         (taskIndex === 0 && settings.activeTask.taskIndex === 0 && 
+          taskData[section][groupIndex].tasks[0] && 
+          taskData[section][groupIndex].tasks[0].title === 
+          taskData[section][groupIndex].tasks[settings.activeTask.taskIndex]?.title));
     
     if (isCurrentlyActive) {
         // Stop focusing
@@ -2417,7 +2466,7 @@ window.updateFocusAlertInterval = function() {
 // Test function to trigger focus alert immediately (for testing)
 window.testFocusAlert = function() {
     if (!settings.activeTask) {
-        alert('⚠️ No task is currently focused.\n\nPlease click the 🎯 button on a task first to enable focus mode.');
+        showCustomAlert('No task is currently focused.<br><br>Please click the 🎯 button on a task first to enable focus mode.', '⚠️');
         return;
     }
     
@@ -2425,14 +2474,60 @@ window.testFocusAlert = function() {
     
     // Verify task still exists
     if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
-        alert('⚠️ The focused task no longer exists.');
+        showCustomAlert('The focused task no longer exists.', '⚠️');
         settings.activeTask = null;
         saveData();
         return;
     }
     
-    // Show the alert immediately for testing
-    showFocusAlert();
+    console.log('🧪 Testing focus alert...');
+    // Show the alert immediately for testing (but don't update lastAlertTime so timer continues)
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    showFocusAlertDialog(section, groupIndex, taskIndex, task.title, settings.activeTask.websiteUrl);
+}
+
+// Debug function to check timer status
+window.debugFocusTimer = function() {
+    console.log('=== Focus Timer Debug ===');
+    console.log('Active Task:', settings.activeTask);
+    console.log('Focus Timer ID:', focusTimer);
+    console.log('Focus Start Time:', focusStartTime ? new Date(focusStartTime).toLocaleString() : 'null');
+    console.log('Last Alert Time:', lastAlertTime ? new Date(lastAlertTime).toLocaleString() : 'null');
+    
+    if (settings.activeTask) {
+        const now = Date.now();
+        const intervalMs = settings.activeTask.alertInterval * 60 * 1000;
+        const storedLastAlert = settings.activeTask.lastAlertTime || lastAlertTime || settings.activeTask.startTime || now;
+        const timeSinceLastAlert = now - storedLastAlert;
+        const minutesSince = Math.floor(timeSinceLastAlert / 60000);
+        const minutesUntil = Math.ceil((intervalMs - timeSinceLastAlert) / 60000);
+        
+        console.log('Alert Interval:', settings.activeTask.alertInterval, 'minutes');
+        console.log('Time since last alert:', minutesSince, 'minutes');
+        console.log('Time until next alert:', minutesUntil > 0 ? minutesUntil + ' minutes' : 'DUE NOW');
+        
+        if (settings.activeTask.startTime) {
+            const totalTime = now - settings.activeTask.startTime;
+            console.log('Total focus time:', Math.floor(totalTime / 60000), 'minutes');
+        }
+    }
+    
+    const status = {
+        hasActiveTask: !!settings.activeTask,
+        timerRunning: focusTimer !== null,
+        taskInfo: settings.activeTask
+    };
+    
+    showCustomAlert(
+        `Focus Timer Status:<br><br>` +
+        `Active Task: ${status.hasActiveTask ? 'Yes ✅' : 'No ❌'}<br>` +
+        `Timer Running: ${status.timerRunning ? 'Yes ✅' : 'No ❌'}<br>` +
+        (status.hasActiveTask ? `<br>Task: "${taskData[settings.activeTask.section][settings.activeTask.groupIndex].tasks[settings.activeTask.taskIndex].title}"<br>` +
+        `Interval: ${settings.activeTask.alertInterval} minutes` : ''),
+        '🔍'
+    );
+    
+    return status;
 }
 
 // Test function to check focus mode status
