@@ -2265,6 +2265,21 @@
                         <option value="heavy">🎯 Heavy (Mentally demanding)</option>
                     </select>
                 </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Status (optional)</label>
+                    <select id="newTaskStatus"
+                            style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <option value="not-started">⚪ Not Started</option>
+                        <option value="planning">💭 Planning</option>
+                        <option value="in-progress">🔵 In Progress</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Notes / Plan (optional)</label>
+                    <textarea id="newTaskNotes"
+                              placeholder="Write your approach, plan, or notes here..."
+                              style="width: 100%; min-height: 80px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white; resize: vertical;"></textarea>
+                </div>
             </div>
             <div class="custom-modal-footer">
                 <button class="modal-btn modal-btn-cancel" onclick="closeNewTaskModal()">Cancel</button>
@@ -2336,6 +2351,22 @@
                         <option value="moderate">⚖️ Moderate (Some mental effort)</option>
                         <option value="heavy">🎯 Heavy (Mentally demanding)</option>
                     </select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Status</label>
+                    <select id="taskEditStatus"
+                            style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <option value="not-started">⚪ Not Started</option>
+                        <option value="planning">💭 Planning</option>
+                        <option value="in-progress">🔵 In Progress</option>
+                        <option value="completed">✅ Completed</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Notes / Plan</label>
+                    <textarea id="taskEditNotes"
+                              placeholder="Write your approach, plan, or notes here..."
+                              style="width: 100%; min-height: 100px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white; resize: vertical;"></textarea>
                 </div>
                 <div id="taskEditSubtasksContainer"></div>
                 <button onclick="addSubtaskInEdit()"

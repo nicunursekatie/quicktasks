@@ -932,6 +932,18 @@ function renderTask(section, groupIndex, taskIndex, task) {
             <div class="task-content" onclick="if(!window.isDragging) editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">
                     ${task.emotionalWeight === 'light' ? '💨 ' : task.emotionalWeight === 'moderate' ? '⚖️ ' : task.emotionalWeight === 'heavy' ? '🎯 ' : ''}${escapeHtml(task.title)}
+                    ${task.status && task.status !== 'not-started' ? `<span style="display: inline-block; margin-left: 8px; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; ${
+                        task.status === 'planning' ? 'background: rgba(255, 193, 7, 0.2); color: #f39c12; border: 1px solid rgba(243, 156, 18, 0.4);' :
+                        task.status === 'in-progress' ? 'background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.4);' :
+                        task.status === 'completed' ? 'background: rgba(46, 204, 113, 0.2); color: #27ae60; border: 1px solid rgba(39, 174, 96, 0.4);' :
+                        'background: rgba(149, 165, 166, 0.2); color: #7f8c8d; border: 1px solid rgba(127, 140, 141, 0.4);'
+                    }">${
+                        task.status === 'planning' ? '💭 Planning' :
+                        task.status === 'in-progress' ? '🔵 In Progress' :
+                        task.status === 'completed' ? '✅ Completed' :
+                        '⚪ Not Started'
+                    }</span>` : ''}
+                    ${task.notes ? `<span style="display: inline-block; margin-left: 6px; font-size: 14px;" title="Has notes/plan">📝</span>` : ''}
                     ${task.completed && task.actualMinutes && task.estimatedMinutes
                         ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.actualMinutes}/${task.estimatedMinutes}min</span>`
                         : task.estimatedMinutes
@@ -998,6 +1010,8 @@ window.showNewTaskModal = function() {
     document.getElementById('newTaskDueDate').value = '';
     document.getElementById('newTaskEstimate').value = '';
     document.getElementById('newTaskEmotionalWeight').value = '';
+    document.getElementById('newTaskStatus').value = 'not-started';
+    document.getElementById('newTaskNotes').value = '';
 
     // Show modal
     document.getElementById('newTaskModal').classList.add('active');
@@ -1055,6 +1069,16 @@ window.submitNewTask = function() {
     const emotionalWeight = document.getElementById('newTaskEmotionalWeight').value;
     if (emotionalWeight) {
         newTask.emotionalWeight = emotionalWeight;
+    }
+
+    const status = document.getElementById('newTaskStatus').value;
+    if (status && status !== 'not-started') {
+        newTask.status = status;
+    }
+
+    const notes = document.getElementById('newTaskNotes').value.trim();
+    if (notes) {
+        newTask.notes = notes;
     }
 
     if (projectValue) {
@@ -1210,6 +1234,8 @@ window.editTask = function(section, groupIndex, taskIndex) {
     document.getElementById('taskEditDueDate').value = task.dueDate || '';
     document.getElementById('taskEditEstimate').value = task.estimatedMinutes || '';
     document.getElementById('taskEditEmotionalWeight').value = task.emotionalWeight || '';
+    document.getElementById('taskEditStatus').value = task.status || 'not-started';
+    document.getElementById('taskEditNotes').value = task.notes || '';
 
     // Populate project dropdown
     const projectSelect = document.getElementById('taskEditProject');
@@ -1355,6 +1381,22 @@ window.submitTaskEdit = function() {
         task.emotionalWeight = newEmotionalWeight;
     } else {
         delete task.emotionalWeight;
+    }
+
+    // Update status
+    const newStatus = document.getElementById('taskEditStatus').value;
+    if (newStatus) {
+        task.status = newStatus;
+    } else {
+        task.status = 'not-started';
+    }
+
+    // Update notes
+    const newNotes = document.getElementById('taskEditNotes').value.trim();
+    if (newNotes) {
+        task.notes = newNotes;
+    } else {
+        delete task.notes;
     }
 
     // Check if project changed
