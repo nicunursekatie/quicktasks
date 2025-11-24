@@ -969,8 +969,16 @@ function renderTask(section, groupIndex, taskIndex, task) {
                 ` : ''}
             </div>
             <div class="task-actions">
-                <button class="focus-btn ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'active' : ''}" 
-                        onclick="toggleFocusTask('${section}', ${groupIndex}, ${taskIndex})" 
+                <button class="status-toggle-btn"
+                        onclick="event.stopPropagation(); toggleTaskStatus('${section}', ${groupIndex}, ${taskIndex})"
+                        title="Change status: ${task.status === 'planning' ? 'Planning' : task.status === 'in-progress' ? 'In Progress' : task.status === 'completed' ? 'Completed' : 'Not Started'}">${
+                    task.status === 'planning' ? '💭' :
+                    task.status === 'in-progress' ? '🔵' :
+                    task.status === 'completed' ? '✅' :
+                    '⚪'
+                }</button>
+                <button class="focus-btn ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'active' : ''}"
+                        onclick="toggleFocusTask('${section}', ${groupIndex}, ${taskIndex})"
                         title="${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'Stop focusing on this task' : 'Focus on this task (periodic alerts)'}">🎯</button>
                 <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
@@ -1160,6 +1168,27 @@ window.toggleTask = async function(section, groupIndex, taskIndex) {
 window.toggleSubtask = function(section, groupIndex, taskIndex, subIndex) {
     const subtask = taskData[section][groupIndex].tasks[taskIndex].subtasks[subIndex];
     subtask.completed = !subtask.completed;
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+}
+
+// Toggle task status (cycle through statuses)
+window.toggleTaskStatus = function(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    const currentStatus = task.status || 'not-started';
+
+    // Cycle through: not-started → planning → in-progress → completed → not-started
+    const statusCycle = {
+        'not-started': 'planning',
+        'planning': 'in-progress',
+        'in-progress': 'completed',
+        'completed': 'not-started'
+    };
+
+    task.status = statusCycle[currentStatus];
+
     saveData();
     renderTasks();
     updateStats();
