@@ -317,6 +317,29 @@ function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
+// Extract date from task title text (e.g., "finish report by friday")
+function extractDateFromTitle(title) {
+    if (!title) return { cleanTitle: title, dueDate: null };
+
+    const text = title.toLowerCase();
+
+    // Pattern: "by [date]" or "due [date]"
+    const byMatch = text.match(/\b(by|due|before)\s+(today|tomorrow|tmr|tom|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\s+(?:week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|this\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|in\s+\d+\s+days?)\b/i);
+
+    if (byMatch) {
+        const datePhrase = byMatch[2].trim();
+        const parsedDate = parseNaturalDate(datePhrase);
+
+        if (parsedDate) {
+            // Remove the date phrase from the title
+            const cleanTitle = title.replace(new RegExp(`\\s*\\b${byMatch[1]}\\s+${byMatch[2]}\\b`, 'i'), '').trim();
+            return { cleanTitle, dueDate: parsedDate };
+        }
+    }
+
+    return { cleanTitle: title, dueDate: null };
+}
+
 // Initialize
 function init() {
     updateDateStamp();
@@ -1044,7 +1067,7 @@ window.closeNewTaskModal = function() {
 }
 
 window.submitNewTask = function() {
-    const title = document.getElementById('newTaskTitle').value.trim();
+    let title = document.getElementById('newTaskTitle').value.trim();
     if (!title) {
         alert('Please enter a task title');
         return;
@@ -1055,12 +1078,15 @@ window.submitNewTask = function() {
     const dueDateInput = document.getElementById('newTaskDueDate').value;
     const estimate = document.getElementById('newTaskEstimate').value;
 
+    // Extract date from title if present
+    const { cleanTitle, dueDate: extractedDate } = extractDateFromTitle(title);
+
     const newTask = {
-        title: title,
+        title: cleanTitle,
         completed: false
     };
 
-    // Parse natural language date
+    // Parse natural language date (prioritize explicit due date field over extracted date)
     if (dueDateInput) {
         const parsedDate = parseNaturalDate(dueDateInput);
         if (parsedDate) {
@@ -1068,6 +1094,9 @@ window.submitNewTask = function() {
         } else if (/^\d{4}-\d{2}-\d{2}$/.test(dueDateInput)) {
             newTask.dueDate = dueDateInput;
         }
+    } else if (extractedDate) {
+        // Use extracted date from title if no explicit due date
+        newTask.dueDate = extractedDate;
     }
 
     if (estimate && parseInt(estimate) > 0) {
