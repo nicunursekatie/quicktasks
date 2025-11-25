@@ -1398,7 +1398,7 @@
                 opacity: 1;
             }
 
-            .edit-btn, .move-btn, .delete-btn, .ai-btn {
+            .edit-btn, .move-btn, .delete-btn, .ai-btn, .status-toggle-btn {
                 padding: 6px 10px;
                 font-size: 14px;
             }
@@ -1550,7 +1550,7 @@
                 min-height: 50px;
             }
 
-            .edit-btn, .move-btn, .delete-btn, .ai-btn {
+            .edit-btn, .move-btn, .delete-btn, .ai-btn, .status-toggle-btn {
                 min-width: 44px;
                 min-height: 44px;
             }
@@ -1613,7 +1613,7 @@
             opacity: 1;
         }
 
-        .edit-btn, .move-btn, .delete-btn, .ai-btn, .focus-btn {
+        .edit-btn, .move-btn, .delete-btn, .ai-btn, .focus-btn, .status-toggle-btn {
             background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -1656,6 +1656,13 @@
             color: white;
             transform: scale(1.1);
             box-shadow: 0 4px 15px rgba(79, 172, 254, 0.5);
+        }
+
+        .status-toggle-btn:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.15);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
         }
 
         .move-btn:hover {
