@@ -2085,12 +2085,24 @@
             <div class="setting-label" style="margin-bottom: 8px;">🎯 Focus Mode Alert Interval</div>
             <select id="focusAlertInterval" onchange="updateFocusAlertInterval()"
                     style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; font-size: 14px; cursor: pointer;">
+                <option value="1">1 minute</option>
+                <option value="2">2 minutes</option>
+                <option value="3">3 minutes</option>
+                <option value="4">4 minutes</option>
                 <option value="5">5 minutes</option>
+                <option value="6">6 minutes</option>
+                <option value="7">7 minutes</option>
+                <option value="8">8 minutes</option>
+                <option value="9">9 minutes</option>
                 <option value="10">10 minutes</option>
+                <option value="11">11 minutes</option>
+                <option value="12">12 minutes</option>
+                <option value="13">13 minutes</option>
+                <option value="14">14 minutes</option>
                 <option value="15">15 minutes</option>
             </select>
             <div style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 6px; line-height: 1.4;">
-                ℹ️ When you focus on a task (🎯 button), you'll be asked to set an alert interval (5/10/15 min) and optionally link a website. This setting is the default for new focus sessions.
+                ℹ️ When you focus on a task (🎯 button), you'll be asked to set an alert interval (1-15 min) and optionally link a website. This setting is the default for new focus sessions.
             </div>
             <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 11px;">
                 <strong>🧪 Testing:</strong><br>
@@ -2518,14 +2530,23 @@
                 </div>
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Alert Interval (minutes)</label>
-                    <input type="number" id="focusAlertIntervalInput" 
-                           min="5" max="15" step="5" value="10"
+                    <input type="number" id="focusAlertIntervalInput"
+                           min="1" max="15" step="1" value="10"
                            style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; font-family: inherit; text-align: center; font-weight: 600;"
-                           placeholder="5, 10, or 15">
-                    <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button onclick="setFocusInterval(5)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 1; padding: 8px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s;">5 min</button>
-                        <button onclick="setFocusInterval(10)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 1; padding: 8px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s;">10 min</button>
-                        <button onclick="setFocusInterval(15)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 1; padding: 8px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s;">15 min</button>
+                           placeholder="1-15">
+                    <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+                        <button onclick="setFocusInterval(1)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">1</button>
+                        <button onclick="setFocusInterval(2)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">2</button>
+                        <button onclick="setFocusInterval(3)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">3</button>
+                        <button onclick="setFocusInterval(4)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">4</button>
+                        <button onclick="setFocusInterval(6)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">6</button>
+                        <button onclick="setFocusInterval(7)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">7</button>
+                        <button onclick="setFocusInterval(8)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">8</button>
+                        <button onclick="setFocusInterval(9)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">9</button>
+                        <button onclick="setFocusInterval(11)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">11</button>
+                        <button onclick="setFocusInterval(12)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">12</button>
+                        <button onclick="setFocusInterval(13)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">13</button>
+                        <button onclick="setFocusInterval(14)" onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'" onmouseout="if(!this.classList.contains('selected')) this.style.background='rgba(102, 126, 234, 0.1)'" style="flex: 0 0 calc(20% - 5px); padding: 8px 4px; background: rgba(102, 126, 234, 0.1); border: 2px solid #667eea; border-radius: 6px; cursor: pointer; font-weight: 600; color: #667eea; transition: all 0.2s; font-size: 13px;">14</button>
                     </div>
                 </div>
                 <div style="margin-bottom: 20px;">

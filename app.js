@@ -2333,7 +2333,7 @@ window.showFocusSetupModal = function(section, groupIndex, taskIndex, callback) 
         } else {
             // Update button selection when typing
             const val = parseInt(e.target.value);
-            if (!isNaN(val) && [5, 10, 15].includes(val)) {
+            if (!isNaN(val) && val >= 1 && val <= 15) {
                 setFocusInterval(val);
             }
         }
@@ -2341,7 +2341,7 @@ window.showFocusSetupModal = function(section, groupIndex, taskIndex, callback) 
     
     intervalInput.oninput = (e) => {
         const val = parseInt(e.target.value);
-        if (!isNaN(val) && [5, 10, 15].includes(val)) {
+        if (!isNaN(val) && val >= 1 && val <= 15) {
             setFocusInterval(val);
         }
     };
@@ -2366,8 +2366,8 @@ window.submitFocusSetup = function() {
     const websiteInput = document.getElementById('focusWebsiteUrlInput').value.trim();
     
     let alertInterval = parseInt(intervalInput);
-    if (isNaN(alertInterval) || ![5, 10, 15].includes(alertInterval)) {
-        showCustomAlert('Please enter a valid interval: 5, 10, or 15 minutes.');
+    if (isNaN(alertInterval) || alertInterval < 1 || alertInterval > 15) {
+        showCustomAlert('Please enter a valid interval: 1-15 minutes.');
         return;
     }
     
