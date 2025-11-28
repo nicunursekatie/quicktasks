@@ -305,14 +305,15 @@
             max-width: 100%;
         }
 
-        /* Right Sidebar */
-        .right-sidebar {
+        /* Left Sidebar */
+        .left-sidebar {
             width: 350px;
             background: var(--bg-card);
-            border-left: 1px solid var(--border-light);
+            border-right: 1px solid var(--border-light);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            order: -1;
         }
 
         .resources-section {
@@ -899,16 +900,16 @@
         .subtasks {
             margin-top: 10px;
             padding-left: 14px;
-            border-left: 2px solid rgba(255, 255, 255, 0.3);
+            border-left: 2px solid var(--border-light);
         }
 
         .subtask {
             display: flex;
             gap: 8px;
             padding: 6px 0;
-            font-size: 15px;
-            color: rgba(255, 255, 255, 0.85);
-            transition: all 0.3s ease;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
         }
 
         .subtask:hover {
@@ -917,35 +918,41 @@
 
         .subtask input[type="checkbox"] {
             appearance: none;
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 6px;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-medium);
+            border-radius: 4px;
             cursor: pointer;
             flex-shrink: 0;
             margin-top: 2px;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.2s ease;
+            background: var(--bg-card);
+            position: relative;
+        }
+
+        .subtask input[type="checkbox"]:hover {
+            border-color: var(--accent-primary);
         }
 
         .subtask input[type="checkbox"]:checked {
-            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
-            border-color: transparent;
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
         }
 
         .subtask input[type="checkbox"]:checked::after {
             content: '✓';
             position: absolute;
             color: white;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
-            margin-left: -15px;
-            margin-top: -1px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         .subtask.checked {
             text-decoration: line-through;
-            color: rgba(255, 255, 255, 0.4);
+            color: var(--text-muted);
         }
 
         .quick-add {
@@ -1159,7 +1166,7 @@
 
         /* Mobile Optimizations */
         @media (max-width: 1400px) {
-            .right-sidebar {
+            .left-sidebar {
                 width: 300px;
             }
         }
@@ -1175,12 +1182,13 @@
                 flex-direction: column;
             }
 
-            .right-sidebar {
+            .left-sidebar {
                 width: 100%;
                 max-height: 40vh;
-                border-left: none;
-                border-top: 1px solid rgba(255, 255, 255, 0.2);
+                border-right: none;
+                border-bottom: 1px solid var(--border-light);
                 overflow-y: auto;
+                order: -1;
             }
 
             .resources-section {
@@ -1347,11 +1355,11 @@
             }
 
             /* Mobile sidebar */
-            .right-sidebar {
+            .left-sidebar {
                 width: 100%;
                 max-height: none;
-                border-left: none;
-                border-top: 1px solid rgba(255, 255, 255, 0.2);
+                border-right: none;
+                border-bottom: 1px solid var(--border-light);
                 position: relative;
             }
 
@@ -1481,11 +1489,11 @@
                 flex-direction: row;
             }
 
-            .right-sidebar {
+            .left-sidebar {
                 width: 300px;
                 max-height: 100%;
-                border-left: 1px solid rgba(255, 255, 255, 0.2);
-                border-top: none;
+                border-right: 1px solid var(--border-light);
+                border-bottom: none;
             }
 
             .tasks-center {
@@ -1561,18 +1569,16 @@
         }
 
         .subtask-delete-btn {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: var(--text-primary);
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
             cursor: pointer;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 16px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
             margin-left: 8px;
             opacity: 0;
-            transition: all 0.3s ease;
-            font-weight: 700;
+            transition: all 0.2s ease;
         }
 
         .subtask:hover .subtask-delete-btn {
@@ -1580,10 +1586,8 @@
         }
 
         .subtask-delete-btn:hover {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-            color: white;
-            transform: scale(1.15);
-            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.5);
+            background: #FEF2F2;
+            color: var(--status-error);
         }
 
         .group-progress {
@@ -1871,8 +1875,8 @@
             </div>
         </div>
 
-        <!-- Right Sidebar -->
-        <div class="right-sidebar">
+        <!-- Left Sidebar -->
+        <div class="left-sidebar">
             <!-- TSP Resources -->
             <div class="resources-section">
                 <div class="resources-header">TSP Resources</div>
