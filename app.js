@@ -350,6 +350,21 @@ function init() {
     loadOpenAIKey();
     initFocusMode();
     requestNotificationPermission();
+    initFirestoreSync();
+}
+
+// Initialize Firestore sync
+function initFirestoreSync() {
+    // Wait for Firebase to be ready
+    if (window.firebaseReady) {
+        // Firebase already ready, sync now
+        syncToFirestore();
+    } else {
+        // Wait for Firebase ready event
+        window.addEventListener('firebaseReady', () => {
+            syncToFirestore();
+        });
+    }
 }
 
 // Request notification permission for background alerts
@@ -1166,6 +1181,10 @@ window.toggleTask = async function(section, groupIndex, taskIndex) {
 
             if (actualTime && parseInt(actualTime) > 0) {
                 task.actualMinutes = parseInt(actualTime);
+
+                // Log time to Firestore for long-term tracking
+                const projectName = taskData[section][groupIndex].groupName;
+                logTimeToFirestore(task.title, projectName, task.estimatedMinutes, task.actualMinutes);
 
                 // Show comparison
                 const diff = task.actualMinutes - task.estimatedMinutes;
@@ -2686,7 +2705,7 @@ window.clearAllData = function() {
     }
 }
 
-// Save data to localStorage with backup
+// Save data to localStorage with backup and sync to Firestore
 function saveData() {
     try {
         // Create a backup of current data before saving
@@ -2694,7 +2713,7 @@ function saveData() {
             taskData: JSON.parse(localStorage.getItem('taskData') || 'null'),
             timestamp: Date.now()
         };
-        
+
         // Keep only the last 5 backups (to avoid filling localStorage)
         let backups = JSON.parse(localStorage.getItem('taskData_backups') || '[]');
         backups.push(currentData);
@@ -2702,15 +2721,108 @@ function saveData() {
             backups = backups.slice(-5); // Keep only last 5
         }
         localStorage.setItem('taskData_backups', JSON.stringify(backups));
-        
-        // Save current data
+
+        // Save current data to localStorage
         localStorage.setItem('taskData', JSON.stringify(taskData));
         localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
         localStorage.setItem('settings', JSON.stringify(settings));
         localStorage.setItem('taskData_lastSaved', Date.now().toString());
+
+        // Sync to Firestore (non-blocking)
+        syncToFirestore();
     } catch (error) {
         console.error('Error saving data:', error);
         alert('Warning: Failed to save task data. Please check your browser storage.');
+    }
+}
+
+// Sync data to Firestore cloud database
+async function syncToFirestore() {
+    if (!window.firestore) {
+        console.log('Firestore not ready yet');
+        return;
+    }
+
+    try {
+        updateSyncStatus('syncing');
+        const result = await window.firestore.saveTaskData(taskData, archivedTasks, settings);
+        if (result.success) {
+            updateSyncStatus('synced');
+        } else {
+            updateSyncStatus('error');
+            console.error('Firestore sync failed:', result.error);
+        }
+    } catch (error) {
+        updateSyncStatus('error');
+        console.error('Firestore sync error:', error);
+    }
+}
+
+// Load data from Firestore (called on startup if localStorage is empty or user requests cloud sync)
+async function loadFromFirestore() {
+    if (!window.firestore) {
+        console.log('Firestore not ready yet');
+        return false;
+    }
+
+    try {
+        updateSyncStatus('syncing');
+        const result = await window.firestore.loadTaskData();
+        if (result.success && result.data) {
+            // Update local data with Firestore data
+            if (result.data.taskData) taskData = result.data.taskData;
+            if (result.data.archivedTasks) archivedTasks = result.data.archivedTasks;
+            if (result.data.settings) {
+                settings = { ...settings, ...result.data.settings };
+            }
+            // Save to localStorage
+            localStorage.setItem('taskData', JSON.stringify(taskData));
+            localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
+            localStorage.setItem('settings', JSON.stringify(settings));
+            updateSyncStatus('synced');
+            return true;
+        }
+        updateSyncStatus('synced');
+        return false;
+    } catch (error) {
+        updateSyncStatus('error');
+        console.error('Firestore load error:', error);
+        return false;
+    }
+}
+
+// Log time entry to Firestore for long-term tracking
+async function logTimeToFirestore(taskTitle, projectName, estimatedMinutes, actualMinutes) {
+    if (!window.firestore) {
+        console.log('Firestore not ready for time logging');
+        return;
+    }
+
+    try {
+        await window.firestore.logTimeEntry(taskTitle, projectName, estimatedMinutes, actualMinutes);
+    } catch (error) {
+        console.error('Failed to log time to Firestore:', error);
+    }
+}
+
+// Update sync status indicator
+function updateSyncStatus(status) {
+    const indicator = document.getElementById('syncStatus');
+    if (!indicator) return;
+
+    indicator.className = 'sync-status ' + status;
+    switch(status) {
+        case 'syncing':
+            indicator.innerHTML = '<span class="sync-icon">&#8635;</span> Syncing...';
+            break;
+        case 'synced':
+            indicator.innerHTML = '<span class="sync-icon">&#10003;</span> Synced';
+            break;
+        case 'error':
+            indicator.innerHTML = '<span class="sync-icon">&#10007;</span> Sync error';
+            break;
+        default:
+            indicator.innerHTML = '<span class="sync-icon">&#9679;</span> Offline';
     }
 }
 
