@@ -20,9 +20,10 @@
             --border-light: #E8E0D4;
             --border-medium: #D4C9BA;
 
-            /* Amber/orange accents */
-            --accent-primary: #D97706;
-            --accent-primary-hover: #B45309;
+            /* Vibrant amber/orange accents */
+            --accent-primary: #F59E0B;
+            --accent-primary-hover: #D97706;
+            --accent-bright: #FBBF24;
             --accent-light: #FEF3C7;
             --accent-subtle: #FFFBEB;
 
@@ -37,9 +38,9 @@
             --status-warning: #EA580C;
             --status-error: #DC2626;
 
-            /* Task section colors */
-            --accent-today: #D97706;
-            --accent-longterm: #92400E;
+            /* Task section colors - more vibrant */
+            --accent-today: #F59E0B;
+            --accent-longterm: #D97706;
 
             /* Shadows - warm tinted */
             --shadow-sm: 0 1px 2px rgba(68, 64, 60, 0.05);
@@ -72,16 +73,17 @@
             color: var(--text-primary);
         }
 
-        /* Top Navigation Bar */
+        /* Top Navigation Bar - Vibrant amber header */
         .top-bar {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border-light);
+            background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
+            border-bottom: none;
             padding: 12px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
             flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
         }
 
         .quick-links {
@@ -92,22 +94,21 @@
         }
 
         .quick-link {
-            background: var(--bg-page);
-            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.25);
+            color: #78350F;
             padding: 6px 12px;
             border-radius: 6px;
             text-decoration: none;
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             transition: all 0.2s ease;
             white-space: nowrap;
-            border: 1px solid var(--border-light);
+            border: none;
         }
 
         .quick-link:hover {
-            background: var(--accent-light);
-            color: var(--accent-primary);
-            border-color: var(--accent-primary);
+            background: rgba(255, 255, 255, 0.4);
+            color: #451A03;
         }
 
         .controls {
@@ -120,9 +121,9 @@
             width: 36px;
             height: 36px;
             border-radius: 8px;
-            border: 1px solid var(--border-light);
-            background: var(--bg-card);
-            color: var(--text-secondary);
+            border: none;
+            background: rgba(255, 255, 255, 0.25);
+            color: #78350F;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -132,9 +133,8 @@
         }
 
         .icon-btn:hover {
-            background: var(--accent-light);
-            color: var(--accent-primary);
-            border-color: var(--accent-primary);
+            background: rgba(255, 255, 255, 0.4);
+            color: #451A03;
         }
 
         .icon-btn:active {
@@ -149,10 +149,10 @@
             padding: 4px 10px;
             border-radius: 6px;
             font-size: 11px;
-            font-weight: 500;
-            background: var(--bg-page);
-            border: 1px solid var(--border-light);
-            color: var(--text-muted);
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.25);
+            border: none;
+            color: #78350F;
             transition: all 0.2s ease;
         }
 
@@ -161,9 +161,8 @@
         }
 
         .sync-status.syncing {
-            background: var(--accent-light);
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
+            background: rgba(255, 255, 255, 0.4);
+            color: #78350F;
         }
 
         .sync-status.syncing .sync-icon {
@@ -171,15 +170,13 @@
         }
 
         .sync-status.synced {
-            background: #FEF9E7;
-            border-color: var(--status-success);
-            color: var(--status-success);
+            background: rgba(255, 255, 255, 0.4);
+            color: #166534;
         }
 
         .sync-status.error {
-            background: #FEF2F2;
-            border-color: var(--status-error);
-            color: var(--status-error);
+            background: rgba(255, 255, 255, 0.4);
+            color: #991B1B;
         }
 
         @keyframes spin {
@@ -543,7 +540,7 @@
 
         /* Today Section */
         #todaySection {
-            border-left: 4px solid var(--accent-today);
+            border-left: 5px solid #F59E0B;
         }
 
         #todaySection h1 {
@@ -552,7 +549,7 @@
 
         /* Longterm Section */
         #longtermSection {
-            border-left: 4px solid var(--accent-longterm);
+            border-left: 5px solid #D97706;
         }
 
         .section-header {
@@ -579,21 +576,21 @@
 
         .badge {
             font-size: 11px;
-            font-weight: 600;
-            padding: 4px 10px;
+            font-weight: 700;
+            padding: 5px 12px;
             border-radius: 6px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .badge-today {
-            background: var(--accent-light);
-            color: var(--accent-primary);
+            background: #F59E0B;
+            color: white;
         }
 
         .badge-longterm {
-            background: #FDF4E7;
-            color: var(--accent-longterm);
+            background: #D97706;
+            color: white;
         }
 
         .progress-ring {
