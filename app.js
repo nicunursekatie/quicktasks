@@ -175,6 +175,98 @@ window.showCustomModal = showCustomModal;
 window.closeCustomModal = closeCustomModal;
 window.submitCustomModal = submitCustomModal;
 
+// Choice Modal System (for selecting between multiple options)
+let choiceResolve = null;
+
+function showChoiceModal(title, message, options) {
+    // options is an array of { value, label, icon, description }
+    return new Promise((resolve) => {
+        choiceResolve = resolve;
+        document.getElementById('choiceModalTitle').textContent = title;
+        document.getElementById('choiceModalMessage').textContent = message;
+
+        const buttonsContainer = document.getElementById('choiceModalButtons');
+        buttonsContainer.innerHTML = '';
+
+        options.forEach(option => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.innerHTML = `
+                <span class="choice-icon">${option.icon || ''}</span>
+                <div class="choice-label">
+                    ${option.label}
+                    ${option.description ? `<div class="choice-description">${option.description}</div>` : ''}
+                </div>
+            `;
+            btn.onclick = () => selectChoice(option.value);
+            buttonsContainer.appendChild(btn);
+        });
+
+        document.getElementById('choiceModal').classList.add('active');
+
+        // Handle escape key
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                closeChoiceModal();
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+    });
+}
+
+function selectChoice(value) {
+    document.getElementById('choiceModal').classList.remove('active');
+    if (choiceResolve) {
+        choiceResolve(value);
+        choiceResolve = null;
+    }
+}
+
+function closeChoiceModal() {
+    document.getElementById('choiceModal').classList.remove('active');
+    if (choiceResolve) {
+        choiceResolve(null);
+        choiceResolve = null;
+    }
+}
+
+window.showChoiceModal = showChoiceModal;
+window.selectChoice = selectChoice;
+window.closeChoiceModal = closeChoiceModal;
+
+// Confirm Modal System (for yes/no questions)
+let confirmResolve = null;
+
+function showConfirmModal(title, message) {
+    return new Promise((resolve) => {
+        confirmResolve = resolve;
+        document.getElementById('confirmModalTitle').textContent = title;
+        document.getElementById('confirmModalMessage').textContent = message;
+        document.getElementById('confirmModal').classList.add('active');
+
+        // Handle escape key
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                closeConfirmModal(false);
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+    });
+}
+
+function closeConfirmModal(result) {
+    document.getElementById('confirmModal').classList.remove('active');
+    if (confirmResolve) {
+        confirmResolve(result);
+        confirmResolve = null;
+    }
+}
+
+window.showConfirmModal = showConfirmModal;
+window.closeConfirmModal = closeConfirmModal;
+
 // Helper function to extract JSON from AI response
 function extractJSON(response) {
     // Clean the response
@@ -1702,12 +1794,27 @@ window.convertToProject = async function(section, groupIndex, taskIndex) {
 
     if (!projectName || !projectName.trim()) return;
 
-    // Ask which section to create the project in
-    const targetSection = confirm(
-        `Where should the project "${projectName.trim()}" be created?\n\n` +
-        `OK = Today's Tasks\n` +
-        `Cancel = Ongoing Projects`
-    ) ? 'today' : 'longterm';
+    // Ask which section to create the project in using choice modal
+    const targetSection = await showChoiceModal(
+        '📍 Choose Location',
+        `Where should "${projectName.trim()}" be created?`,
+        [
+            {
+                value: 'today',
+                label: "Today's Tasks",
+                icon: '⚡',
+                description: 'For projects you want to work on today'
+            },
+            {
+                value: 'longterm',
+                label: 'Ongoing Projects',
+                icon: '📅',
+                description: 'For longer-term projects and goals'
+            }
+        ]
+    );
+
+    if (!targetSection) return; // User cancelled
 
     // Remove task from current group
     taskData[section][groupIndex].tasks.splice(taskIndex, 1);
@@ -1741,11 +1848,14 @@ window.convertToProject = async function(section, groupIndex, taskIndex) {
     updateStats();
     updateProgress();
 
-    // Offer to use AI to break down the project
-    const useAI = confirm(
-        `✅ Project "${projectName.trim()}" created!\n\n` +
-        (newProject.tasks.length > 0 ? `${newProject.tasks.length} subtasks were converted to tasks.\n\n` : '') +
-        `Would you like AI to suggest tasks for this project?`
+    // Offer to use AI to break down the project using confirm modal
+    const successMessage = newProject.tasks.length > 0
+        ? `Project created with ${newProject.tasks.length} tasks from subtasks.\n\nWould you like AI to suggest additional tasks?`
+        : `Would you like AI to suggest tasks for this project?`;
+
+    const useAI = await showConfirmModal(
+        `✅ Project Created!`,
+        successMessage
     );
 
     if (useAI) {
