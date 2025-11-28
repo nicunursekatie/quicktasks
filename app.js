@@ -1020,6 +1020,7 @@ function renderTask(section, groupIndex, taskIndex, task) {
                         title="${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'Stop focusing on this task' : 'Focus on this task (periodic alerts)'}">🎯</button>
                 <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
+                <button class="convert-btn" onclick="convertToProject('${section}', ${groupIndex}, ${taskIndex})" title="Convert to project">📁</button>
                 <button class="move-btn" onclick="moveTask('${section}', ${groupIndex}, ${taskIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
                 <button class="delete-btn" onclick="deleteTask('${section}', ${groupIndex}, ${taskIndex})" title="Delete task">🗑️</button>
             </div>
@@ -1685,6 +1686,73 @@ window.moveTask = function(fromSection, groupIndex, taskIndex) {
     renderTasks();
     updateStats();
     updateProgress();
+}
+
+// Convert a task to a new project
+window.convertToProject = async function(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    const taskTitle = task.title;
+
+    // Ask for project name (default to task title)
+    const projectName = await showCustomModal(
+        '📁 Convert to Project',
+        `Create a new project from this task?\n\nTask: "${taskTitle}"\n\nEnter project name:`,
+        taskTitle
+    );
+
+    if (!projectName || !projectName.trim()) return;
+
+    // Ask which section to create the project in
+    const targetSection = confirm(
+        `Where should the project "${projectName.trim()}" be created?\n\n` +
+        `OK = Today's Tasks\n` +
+        `Cancel = Ongoing Projects`
+    ) ? 'today' : 'longterm';
+
+    // Remove task from current group
+    taskData[section][groupIndex].tasks.splice(taskIndex, 1);
+
+    // Remove group if empty
+    if (taskData[section][groupIndex].tasks.length === 0) {
+        taskData[section].splice(groupIndex, 1);
+    }
+
+    // Create new project with the task as a subtask or note
+    const newProject = {
+        groupName: projectName.trim(),
+        tasks: []
+    };
+
+    // If the original task had subtasks, convert them to tasks
+    if (task.subtasks && task.subtasks.length > 0) {
+        task.subtasks.forEach(subtask => {
+            newProject.tasks.push({
+                title: subtask.title,
+                completed: subtask.completed
+            });
+        });
+    }
+
+    // Add the new project to the target section
+    taskData[targetSection].push(newProject);
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+
+    // Offer to use AI to break down the project
+    const useAI = confirm(
+        `✅ Project "${projectName.trim()}" created!\n\n` +
+        (newProject.tasks.length > 0 ? `${newProject.tasks.length} subtasks were converted to tasks.\n\n` : '') +
+        `Would you like AI to suggest tasks for this project?`
+    );
+
+    if (useAI) {
+        // Find the new project's index
+        const newProjectIndex = taskData[targetSection].length - 1;
+        aiBreakdownProject(targetSection, newProjectIndex);
+    }
 }
 
 // Quick add task
