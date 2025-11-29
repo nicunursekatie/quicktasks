@@ -756,7 +756,7 @@
             opacity: 1;
         }
 
-        .group-edit-btn, .group-add-task-btn, .group-move-btn, .group-delete-btn {
+        .group-edit-btn, .group-add-task-btn, .group-move-btn, .group-archive-btn, .group-delete-btn {
             background: transparent;
             border: none;
             color: var(--text-muted);
@@ -770,6 +770,11 @@
         .group-edit-btn:hover, .group-add-task-btn:hover, .group-move-btn:hover {
             background: var(--accent-light);
             color: var(--accent-primary);
+        }
+
+        .group-archive-btn:hover {
+            background: #FEF3E2;
+            color: #B45309;
         }
 
         .group-delete-btn:hover {
@@ -1319,7 +1324,7 @@
                 opacity: 1;
             }
 
-            .group-edit-btn, .group-add-task-btn, .group-move-btn, .group-delete-btn {
+            .group-edit-btn, .group-add-task-btn, .group-move-btn, .group-archive-btn, .group-delete-btn {
                 padding: 5px 8px;
                 font-size: 13px;
             }
@@ -1466,7 +1471,7 @@
                 min-height: 44px;
             }
 
-            .group-edit-btn, .group-add-task-btn, .group-move-btn, .group-delete-btn {
+            .group-edit-btn, .group-add-task-btn, .group-move-btn, .group-archive-btn, .group-delete-btn {
                 min-width: 40px;
                 min-height: 40px;
             }

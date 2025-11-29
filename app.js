@@ -609,6 +609,7 @@ function renderSection(section, containerId) {
                         <button class="group-add-task-btn" onclick="addTaskToGroup('${section}', ${groupIndex})" title="Add task to project">➕</button>
                         <button class="group-move-btn" onclick="moveGroup('${section}', ${groupIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
                         <button class="group-ai-btn" onclick="aiBreakdownProject('${section}', ${groupIndex})" title="AI: Break down project" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); color: var(--text-primary); cursor: pointer; padding: 6px 10px; border-radius: 8px; font-size: 14px; transition: all 0.3s ease;">✨</button>
+                        <button class="group-archive-btn" onclick="archiveGroup('${section}', ${groupIndex})" title="Archive project">📦</button>
                         <button class="group-delete-btn" onclick="deleteGroup('${section}', ${groupIndex})" title="Delete project">🗑️</button>
                     </div>
                 </div>
@@ -1375,6 +1376,70 @@ window.deleteGroup = function(section, groupIndex) {
             settings.activeTask.groupIndex--;
         }
         
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+}
+
+// Archive entire project
+window.archiveGroup = async function(section, groupIndex) {
+    const group = taskData[section][groupIndex];
+    const taskCount = group.tasks.length;
+    const completedCount = group.tasks.filter(t => t.completed).length;
+
+    const confirmMsg = taskCount > 0
+        ? `Archive project "${group.groupName}"?\n\n${taskCount} task${taskCount === 1 ? '' : 's'} (${completedCount} completed) will be moved to the archive.`
+        : `Archive empty project "${group.groupName}"?`;
+
+    const shouldArchive = await showConfirmModal('📦 Archive Project', confirmMsg);
+
+    if (shouldArchive) {
+        const timestamp = new Date().toISOString();
+
+        // Archive all tasks from this project
+        group.tasks.forEach(task => {
+            archivedTasks.push({
+                ...task,
+                archivedDate: timestamp,
+                originalProject: group.groupName,
+                originalSection: section,
+                projectArchived: true // Mark that this came from a project archive
+            });
+        });
+
+        // Also store a record of the project itself if it had tasks
+        if (taskCount > 0) {
+            archivedTasks.push({
+                title: `[Project: ${group.groupName}]`,
+                isProjectMarker: true,
+                archivedDate: timestamp,
+                originalProject: group.groupName,
+                originalSection: section,
+                taskCount: taskCount,
+                completedCount: completedCount
+            });
+        }
+
+        // Check if active task is in this group
+        if (settings.activeTask &&
+            settings.activeTask.section === section &&
+            settings.activeTask.groupIndex === groupIndex) {
+            settings.activeTask = null;
+            clearFocusTimer();
+        }
+
+        // Remove the project
+        taskData[section].splice(groupIndex, 1);
+
+        // Adjust active task group index if archiving before it
+        if (settings.activeTask &&
+            settings.activeTask.section === section &&
+            settings.activeTask.groupIndex > groupIndex) {
+            settings.activeTask.groupIndex--;
+        }
+
         saveData();
         renderTasks();
         updateStats();
