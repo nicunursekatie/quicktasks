@@ -654,6 +654,142 @@
             font-style: italic;
         }
 
+        /* Note Tags */
+        .notes-tag-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .notes-tag-filter:empty {
+            display: none;
+        }
+
+        .tag-filter-btn {
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tag-filter-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .tag-filter-btn.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .tag-filter-btn.all-notes {
+            background: var(--bg-hover);
+        }
+
+        .note-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .note-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--accent-light);
+            color: var(--accent-primary);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .note-tag-remove {
+            cursor: pointer;
+            opacity: 0.7;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .note-tag-remove:hover {
+            opacity: 1;
+        }
+
+        .note-tag-input-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .note-tag-input {
+            flex: 1;
+            min-width: 80px;
+            padding: 4px 8px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 11px;
+            background: var(--bg-page);
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .note-tag-input:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .note-tag-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .existing-tag-btn {
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px dashed var(--border-medium);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .existing-tag-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            border-style: solid;
+        }
+
+        .note-action-btn.save-btn {
+            background: var(--accent-primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .note-action-btn.save-btn:hover {
+            background: var(--accent-primary-hover);
+        }
+
+        .note-action-btn.cancel-btn {
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+
+        .note-action-btn.cancel-btn:hover {
+            background: #FEF2F2;
+            color: var(--status-error);
+        }
+
         .date-stamp {
             text-align: center;
             color: var(--text-primary);
@@ -2110,6 +2246,9 @@
                 <div class="notes-header">
                     <span>📝 Notes</span>
                     <button class="add-note-btn" onclick="addNewNote()" title="Add note">+</button>
+                </div>
+                <div class="notes-tag-filter" id="notesTagFilter">
+                    <!-- Tag filters will be rendered here -->
                 </div>
                 <div class="notes-list" id="notesList">
                     <!-- Notes will be rendered here -->

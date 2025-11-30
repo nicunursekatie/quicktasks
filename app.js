@@ -2210,6 +2210,8 @@ window.clearArchive = function() {
 
 // ==================== NOTES SECTION ====================
 
+let activeNoteTagFilter = null; // null means show all
+
 function saveNotes() {
     localStorage.setItem('notes', JSON.stringify(notes));
     // Also sync to Firestore if available
@@ -2218,25 +2220,87 @@ function saveNotes() {
     }
 }
 
+function getAllNoteTags() {
+    const tagSet = new Set();
+    notes.forEach(note => {
+        if (note.tags && Array.isArray(note.tags)) {
+            note.tags.forEach(tag => tagSet.add(tag));
+        }
+    });
+    return Array.from(tagSet).sort();
+}
+
+function renderNoteTagFilters() {
+    const container = document.getElementById('notesTagFilter');
+    if (!container) return;
+
+    const allTags = getAllNoteTags();
+    if (allTags.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = `
+        <button class="tag-filter-btn all-notes ${activeNoteTagFilter === null ? 'active' : ''}"
+                onclick="filterNotesByTag(null)">All</button>
+        ${allTags.map(tag => `
+            <button class="tag-filter-btn ${activeNoteTagFilter === tag ? 'active' : ''}"
+                    onclick="filterNotesByTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</button>
+        `).join('')}
+    `;
+}
+
+window.filterNotesByTag = function(tag) {
+    activeNoteTagFilter = tag;
+    renderNoteTagFilters();
+    renderNotes();
+}
+
 function renderNotes() {
     const container = document.getElementById('notesList');
     if (!container) return;
+
+    // Also render tag filters
+    renderNoteTagFilters();
 
     if (notes.length === 0) {
         container.innerHTML = '<div class="notes-empty">No notes yet. Click + to add one.</div>';
         return;
     }
 
-    container.innerHTML = notes.map((note, index) => `
-        <div class="note-item" data-index="${index}">
-            <div class="note-content" onclick="editNote(${index})">${escapeHtml(note.content)}</div>
-            <div class="note-timestamp">${formatNoteDate(note.updatedAt || note.createdAt)}</div>
-            <div class="note-actions">
-                <button class="note-action-btn" onclick="editNote(${index})">Edit</button>
-                <button class="note-action-btn delete" onclick="deleteNote(${index})">Delete</button>
+    // Filter notes by active tag
+    let filteredNotes = notes;
+    if (activeNoteTagFilter !== null) {
+        filteredNotes = notes.filter(note =>
+            note.tags && note.tags.includes(activeNoteTagFilter)
+        );
+    }
+
+    if (filteredNotes.length === 0) {
+        container.innerHTML = `<div class="notes-empty">No notes with tag "${escapeHtml(activeNoteTagFilter)}"</div>`;
+        return;
+    }
+
+    container.innerHTML = filteredNotes.map((note) => {
+        const actualIndex = notes.indexOf(note);
+        const tagsHtml = note.tags && note.tags.length > 0
+            ? `<div class="note-tags">${note.tags.map(tag =>
+                `<span class="note-tag">${escapeHtml(tag)}</span>`
+              ).join('')}</div>`
+            : '';
+
+        return `
+            <div class="note-item" data-index="${actualIndex}">
+                <div class="note-content" onclick="editNote(${actualIndex})">${escapeHtml(note.content)}</div>
+                ${tagsHtml}
+                <div class="note-timestamp">${formatNoteDate(note.updatedAt || note.createdAt)}</div>
+                <div class="note-actions">
+                    <button class="note-action-btn" onclick="editNote(${actualIndex})">Edit</button>
+                    <button class="note-action-btn delete" onclick="deleteNote(${actualIndex})">Delete</button>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function formatNoteDate(dateString) {
@@ -2258,6 +2322,7 @@ window.addNewNote = function() {
     const newNote = {
         id: Date.now(),
         content: '',
+        tags: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     };
@@ -2274,14 +2339,65 @@ window.editNote = function(index) {
     if (!noteItem || noteItem.classList.contains('editing')) return;
 
     const note = notes[index];
+    if (!note.tags) note.tags = [];
+
     noteItem.classList.add('editing');
 
+    // Store original values for cancel
+    window._editingNoteOriginal = {
+        content: note.content,
+        tags: [...note.tags]
+    };
+    window._editingNoteIndex = index;
+
     const contentDiv = noteItem.querySelector('.note-content');
-    const originalContent = note.content;
+
+    // Get all existing tags for suggestions
+    const allTags = getAllNoteTags();
+    const availableTags = allTags.filter(t => !note.tags.includes(t));
 
     contentDiv.innerHTML = `
-        <textarea class="note-textarea" placeholder="Write your note...">${escapeHtml(originalContent)}</textarea>
+        <textarea class="note-textarea" placeholder="Write your note...">${escapeHtml(note.content)}</textarea>
     `;
+
+    // Create tag editing section
+    const tagEditHtml = `
+        <div class="note-tag-input-wrapper">
+            ${note.tags.map(tag => `
+                <span class="note-tag">
+                    ${escapeHtml(tag)}
+                    <span class="note-tag-remove" onclick="removeNoteTag(${index}, '${escapeHtml(tag)}')">&times;</span>
+                </span>
+            `).join('')}
+            <input type="text" class="note-tag-input" placeholder="Add tag..."
+                   onkeydown="handleNoteTagInput(event, ${index})">
+        </div>
+        ${availableTags.length > 0 ? `
+            <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">
+                ${availableTags.slice(0, 5).map(tag => `
+                    <button class="existing-tag-btn" onclick="addExistingTagToNote(${index}, '${escapeHtml(tag)}')"
+                            title="Add tag">+ ${escapeHtml(tag)}</button>
+                `).join('')}
+            </div>
+        ` : ''}
+    `;
+
+    // Insert tag editing after content
+    let tagEditContainer = noteItem.querySelector('.note-tag-edit');
+    if (!tagEditContainer) {
+        tagEditContainer = document.createElement('div');
+        tagEditContainer.className = 'note-tag-edit';
+        contentDiv.after(tagEditContainer);
+    }
+    tagEditContainer.innerHTML = tagEditHtml;
+
+    // Replace the actions with Save/Cancel buttons
+    const actionsDiv = noteItem.querySelector('.note-actions');
+    actionsDiv.innerHTML = `
+        <button class="note-action-btn save-btn" onclick="saveEditingNote(${index})">Save</button>
+        <button class="note-action-btn cancel-btn" onclick="cancelEditingNote(${index})">Cancel</button>
+    `;
+    actionsDiv.style.opacity = '1';
 
     const textarea = contentDiv.querySelector('.note-textarea');
     textarea.focus();
@@ -2295,34 +2411,95 @@ window.editNote = function(index) {
     autoResize();
     textarea.addEventListener('input', autoResize);
 
-    // Save on blur
-    const saveNote = () => {
-        const newContent = textarea.value.trim();
-        if (newContent === '' && originalContent === '') {
-            // Delete empty new note
-            notes.splice(index, 1);
-        } else {
-            notes[index].content = newContent;
-            notes[index].updatedAt = new Date().toISOString();
-        }
-        saveNotes();
-        renderNotes();
-    };
-
-    textarea.addEventListener('blur', saveNote);
-
     // Save on Ctrl+Enter or Cmd+Enter
     textarea.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
-            textarea.blur();
+            saveEditingNote(index);
         }
         // Cancel on Escape
         if (e.key === 'Escape') {
-            notes[index].content = originalContent;
-            renderNotes();
+            cancelEditingNote(index);
         }
     });
+}
+
+window.saveEditingNote = function(index) {
+    const container = document.getElementById('notesList');
+    const noteItem = container.querySelector(`[data-index="${index}"]`);
+    if (!noteItem) return;
+
+    const textarea = noteItem.querySelector('.note-textarea');
+    const newContent = textarea ? textarea.value.trim() : notes[index].content;
+
+    // Check if note is empty and was originally empty (new note)
+    const original = window._editingNoteOriginal;
+    if (newContent === '' && original && original.content === '' && notes[index].tags.length === 0) {
+        // Delete empty new note
+        notes.splice(index, 1);
+    } else {
+        notes[index].content = newContent;
+        notes[index].updatedAt = new Date().toISOString();
+    }
+
+    saveNotes();
+    renderNotes();
+    window._editingNoteOriginal = null;
+    window._editingNoteIndex = null;
+}
+
+window.cancelEditingNote = function(index) {
+    const original = window._editingNoteOriginal;
+    if (original) {
+        // Check if this was a new empty note
+        if (original.content === '' && original.tags.length === 0) {
+            // Delete the empty note we created
+            notes.splice(index, 1);
+        } else {
+            // Restore original values
+            notes[index].content = original.content;
+            notes[index].tags = original.tags;
+        }
+    }
+    renderNotes();
+    window._editingNoteOriginal = null;
+    window._editingNoteIndex = null;
+}
+
+window.handleNoteTagInput = function(event, noteIndex) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const input = event.target;
+        const tagName = input.value.trim().toLowerCase();
+
+        if (tagName && !notes[noteIndex].tags.includes(tagName)) {
+            notes[noteIndex].tags.push(tagName);
+            notes[noteIndex].updatedAt = new Date().toISOString();
+            saveNotes();
+            // Re-render just the editing state
+            editNote(noteIndex);
+        }
+        input.value = '';
+    }
+}
+
+window.addExistingTagToNote = function(noteIndex, tagName) {
+    if (!notes[noteIndex].tags.includes(tagName)) {
+        notes[noteIndex].tags.push(tagName);
+        notes[noteIndex].updatedAt = new Date().toISOString();
+        saveNotes();
+        editNote(noteIndex);
+    }
+}
+
+window.removeNoteTag = function(noteIndex, tagName) {
+    const tagIdx = notes[noteIndex].tags.indexOf(tagName);
+    if (tagIdx > -1) {
+        notes[noteIndex].tags.splice(tagIdx, 1);
+        notes[noteIndex].updatedAt = new Date().toISOString();
+        saveNotes();
+        editNote(noteIndex);
+    }
 }
 
 window.deleteNote = async function(index) {
