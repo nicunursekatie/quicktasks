@@ -512,6 +512,148 @@
             box-shadow: 0 0 12px rgba(67, 233, 123, 0.5);
         }
 
+        /* Notes Section */
+        .notes-section {
+            padding: 16px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .notes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .add-note-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: none;
+            background: var(--accent-primary);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .add-note-btn:hover {
+            background: var(--accent-primary-hover);
+            transform: scale(1.05);
+        }
+
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .note-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 12px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .note-item:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .note-item.editing {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .note-content {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            cursor: text;
+            min-height: 20px;
+        }
+
+        .note-content:empty::before {
+            content: 'Click to add note...';
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .note-textarea {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            resize: none;
+            font-family: inherit;
+            outline: none;
+            min-height: 60px;
+        }
+
+        .note-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .note-item:hover .note-actions,
+        .note-item.editing .note-actions {
+            opacity: 1;
+        }
+
+        .note-action-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+
+        .note-action-btn:hover {
+            background: var(--accent-light);
+            color: var(--accent-primary);
+        }
+
+        .note-action-btn.delete:hover {
+            background: #FEF2F2;
+            color: var(--status-error);
+        }
+
+        .note-timestamp {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .notes-empty {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 20px;
+            font-style: italic;
+        }
+
         .date-stamp {
             text-align: center;
             color: var(--text-primary);
@@ -1960,6 +2102,17 @@
                     <a href="https://sandwich-project-platform-final-katielong2316.replit.app/" target="_blank" class="resource-link">
                         <span class="resource-title">🚀 TSP Platform</span>
                     </a>
+                </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="notes-section">
+                <div class="notes-header">
+                    <span>📝 Notes</span>
+                    <button class="add-note-btn" onclick="addNewNote()" title="Add note">+</button>
+                </div>
+                <div class="notes-list" id="notesList">
+                    <!-- Notes will be rendered here -->
                 </div>
             </div>
         </div>

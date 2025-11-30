@@ -104,6 +104,7 @@ function loadTaskData() {
 
 let taskData = loadTaskData();
 let archivedTasks = JSON.parse(localStorage.getItem('archivedTasks')) || [];
+let notes = JSON.parse(localStorage.getItem('notes')) || [];
 let settings = JSON.parse(localStorage.getItem('settings')) || {
     darkMode: false,
     showCompleted: true,
@@ -437,6 +438,7 @@ function init() {
     updateDateStamp();
     applyTheme();
     renderTasks();
+    renderNotes();
     updateStats();
     updateProgress();
     loadOpenAIKey();
@@ -2203,6 +2205,139 @@ window.clearArchive = function() {
         localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
         renderArchive();
         alert('Archive cleared.');
+    }
+}
+
+// ==================== NOTES SECTION ====================
+
+function saveNotes() {
+    localStorage.setItem('notes', JSON.stringify(notes));
+    // Also sync to Firestore if available
+    if (window.firestore && typeof syncToFirestore === 'function') {
+        syncToFirestore();
+    }
+}
+
+function renderNotes() {
+    const container = document.getElementById('notesList');
+    if (!container) return;
+
+    if (notes.length === 0) {
+        container.innerHTML = '<div class="notes-empty">No notes yet. Click + to add one.</div>';
+        return;
+    }
+
+    container.innerHTML = notes.map((note, index) => `
+        <div class="note-item" data-index="${index}">
+            <div class="note-content" onclick="editNote(${index})">${escapeHtml(note.content)}</div>
+            <div class="note-timestamp">${formatNoteDate(note.updatedAt || note.createdAt)}</div>
+            <div class="note-actions">
+                <button class="note-action-btn" onclick="editNote(${index})">Edit</button>
+                <button class="note-action-btn delete" onclick="deleteNote(${index})">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function formatNoteDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+window.addNewNote = function() {
+    const newNote = {
+        id: Date.now(),
+        content: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    notes.unshift(newNote);
+    saveNotes();
+    renderNotes();
+    // Immediately edit the new note
+    editNote(0);
+}
+
+window.editNote = function(index) {
+    const container = document.getElementById('notesList');
+    const noteItem = container.querySelector(`[data-index="${index}"]`);
+    if (!noteItem || noteItem.classList.contains('editing')) return;
+
+    const note = notes[index];
+    noteItem.classList.add('editing');
+
+    const contentDiv = noteItem.querySelector('.note-content');
+    const originalContent = note.content;
+
+    contentDiv.innerHTML = `
+        <textarea class="note-textarea" placeholder="Write your note...">${escapeHtml(originalContent)}</textarea>
+    `;
+
+    const textarea = contentDiv.querySelector('.note-textarea');
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    // Auto-resize textarea
+    const autoResize = () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    };
+    autoResize();
+    textarea.addEventListener('input', autoResize);
+
+    // Save on blur
+    const saveNote = () => {
+        const newContent = textarea.value.trim();
+        if (newContent === '' && originalContent === '') {
+            // Delete empty new note
+            notes.splice(index, 1);
+        } else {
+            notes[index].content = newContent;
+            notes[index].updatedAt = new Date().toISOString();
+        }
+        saveNotes();
+        renderNotes();
+    };
+
+    textarea.addEventListener('blur', saveNote);
+
+    // Save on Ctrl+Enter or Cmd+Enter
+    textarea.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            textarea.blur();
+        }
+        // Cancel on Escape
+        if (e.key === 'Escape') {
+            notes[index].content = originalContent;
+            renderNotes();
+        }
+    });
+}
+
+window.deleteNote = async function(index) {
+    const note = notes[index];
+    const preview = note.content.substring(0, 50) + (note.content.length > 50 ? '...' : '');
+
+    const shouldDelete = await showConfirmModal(
+        '🗑️ Delete Note',
+        `Delete this note?\n\n"${preview || '(empty note)'}"`
+    );
+
+    if (shouldDelete) {
+        notes.splice(index, 1);
+        saveNotes();
+        renderNotes();
     }
 }
 
