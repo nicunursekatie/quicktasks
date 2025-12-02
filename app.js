@@ -1085,6 +1085,11 @@ function renderTask(section, groupIndex, taskIndex, task) {
                     }
                     ${task.dueDate ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">📅 ${task.dueDate}</span>` : ''}
                 </div>
+                ${task.tags && task.tags.length > 0 ? `
+                    <div class="task-tags">
+                        ${task.tags.map(tag => `<span class="task-tag">${escapeHtml(tag)}</span>`).join('')}
+                    </div>
+                ` : ''}
                 ${task.subtasks ? `
                     <div class="subtasks">
                         ${task.subtasks.map((subtask, subIndex) => `
@@ -1153,6 +1158,7 @@ window.showNewTaskModal = function() {
     document.getElementById('newTaskEstimate').value = '';
     document.getElementById('newTaskEmotionalWeight').value = '';
     document.getElementById('newTaskStatus').value = 'not-started';
+    document.getElementById('newTaskTags').value = '';
     document.getElementById('newTaskNotes').value = '';
 
     // Show modal
@@ -1227,6 +1233,15 @@ window.submitNewTask = function() {
     const notes = document.getElementById('newTaskNotes').value.trim();
     if (notes) {
         newTask.notes = notes;
+    }
+
+    const tagsInput = document.getElementById('newTaskTags').value.trim();
+    if (tagsInput) {
+        // Parse tags: split by comma, trim whitespace, filter empty strings, convert to lowercase
+        newTask.tags = tagsInput.split(',')
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0)
+            .map(tag => tag.toLowerCase());
     }
 
     if (projectValue) {
@@ -1472,6 +1487,7 @@ window.editTask = function(section, groupIndex, taskIndex) {
     document.getElementById('taskEditEstimate').value = task.estimatedMinutes || '';
     document.getElementById('taskEditEmotionalWeight').value = task.emotionalWeight || '';
     document.getElementById('taskEditStatus').value = task.status || 'not-started';
+    document.getElementById('taskEditTags').value = task.tags ? task.tags.join(', ') : '';
     document.getElementById('taskEditNotes').value = task.notes || '';
 
     // Populate project dropdown
@@ -1634,6 +1650,18 @@ window.submitTaskEdit = function() {
         task.notes = newNotes;
     } else {
         delete task.notes;
+    }
+
+    // Update tags
+    const tagsInput = document.getElementById('taskEditTags').value.trim();
+    if (tagsInput) {
+        // Parse tags: split by comma, trim whitespace, filter empty strings, convert to lowercase
+        task.tags = tagsInput.split(',')
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0)
+            .map(tag => tag.toLowerCase());
+    } else {
+        delete task.tags;
     }
 
     // Check if project changed
