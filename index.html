@@ -2116,6 +2116,81 @@
             color: var(--text-secondary);
             margin-top: 2px;
         }
+
+        /* Daily Digest Styles */
+        .digest-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            background: var(--bg-page);
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-primary);
+        }
+
+        .digest-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .digest-task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .digest-task-item {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: var(--bg-card);
+            border-radius: 6px;
+            border: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .digest-task-item:hover {
+            border-color: var(--accent-primary);
+            transform: translateX(4px);
+        }
+
+        .digest-task-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .digest-task-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .digest-task-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .digest-summary {
+            padding: 12px;
+            background: var(--accent-subtle);
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .digest-empty {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-muted);
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -2146,6 +2221,7 @@
             <div id="syncStatus" class="sync-status offline" title="Cloud sync status">
                 <span class="sync-icon">&#9679;</span> Offline
             </div>
+            <button class="icon-btn" onclick="showDailyDigest()" title="Daily Digest">📋</button>
             <button class="icon-btn" onclick="showNewTaskModal()" title="New Task" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); font-size: 20px;">➕</button>
             <button class="icon-btn" onclick="archiveCompleted()" title="Archive Completed Tasks">📦</button>
             <button class="icon-btn" onclick="toggleArchive()" title="View Archive">🗄️</button>
@@ -2951,6 +3027,22 @@
             <div class="custom-modal-footer">
                 <button class="modal-btn modal-btn-cancel" onclick="closeConfirmModal(false)">No</button>
                 <button class="modal-btn modal-btn-submit" onclick="closeConfirmModal(true)">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Digest Modal -->
+    <div id="dailyDigestModal" class="custom-modal">
+        <div class="custom-modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+            <div class="custom-modal-header">
+                <h3>📋 Daily Digest</h3>
+                <button class="modal-close-btn" onclick="closeDailyDigest()">&times;</button>
+            </div>
+            <div class="custom-modal-body" id="dailyDigestContent">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="custom-modal-footer">
+                <button class="modal-btn modal-btn-submit" onclick="closeDailyDigest()">Got it!</button>
             </div>
         </div>
     </div>

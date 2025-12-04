@@ -4143,5 +4143,270 @@ Example response (return exactly in this format):
     }
 }
 
+// Daily Digest Functions
+function getTomorrowDate() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    return formatDate(tomorrow);
+}
+
+function getTodayDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return formatDate(today);
+}
+
+function getAllTasks() {
+    const allTasks = [];
+    
+    // Get all tasks from both sections
+    ['today', 'longterm'].forEach(section => {
+        taskData[section].forEach((group, groupIndex) => {
+            group.tasks.forEach((task, taskIndex) => {
+                allTasks.push({
+                    ...task,
+                    section,
+                    groupName: group.groupName,
+                    groupIndex,
+                    taskIndex
+                });
+            });
+        });
+    });
+    
+    return allTasks;
+}
+
+function generateDailyDigest() {
+    const tomorrow = getTomorrowDate();
+    const today = getTodayDate();
+    const allTasks = getAllTasks();
+    
+    // Filter out completed tasks
+    const activeTasks = allTasks.filter(task => !task.completed);
+    
+    // Tasks due tomorrow
+    const dueTomorrow = activeTasks.filter(task => task.dueDate === tomorrow);
+    
+    // Overdue tasks (due date is before today)
+    const overdue = activeTasks.filter(task => {
+        if (!task.dueDate) return false;
+        return task.dueDate < today;
+    });
+    
+    // Tasks that need attention (in-progress, high emotional weight, or urgent tags)
+    const needsAttention = activeTasks.filter(task => {
+        if (task.dueDate === tomorrow || (task.dueDate && task.dueDate < today)) {
+            return false; // Already in other categories
+        }
+        return task.status === 'in-progress' || 
+               task.emotionalWeight === 'heavy' ||
+               (task.tags && task.tags.includes('urgent'));
+    });
+    
+    // Rest of tasks (not in any of the above categories)
+    const restOfTasks = activeTasks.filter(task => {
+        const isDueTomorrow = task.dueDate === tomorrow;
+        const isOverdue = task.dueDate && task.dueDate < today;
+        const needsAttn = task.status === 'in-progress' || 
+                         task.emotionalWeight === 'heavy' ||
+                         (task.tags && task.tags.includes('urgent'));
+        return !isDueTomorrow && !isOverdue && !needsAttn;
+    });
+    
+    // Group rest of tasks by section
+    const restBySection = {
+        today: restOfTasks.filter(t => t.section === 'today'),
+        longterm: restOfTasks.filter(t => t.section === 'longterm')
+    };
+    
+    return {
+        dueTomorrow,
+        overdue,
+        needsAttention,
+        restBySection,
+        summary: {
+            totalActive: activeTasks.length,
+            dueTomorrowCount: dueTomorrow.length,
+            overdueCount: overdue.length,
+            needsAttentionCount: needsAttention.length,
+            restCount: restOfTasks.length
+        }
+    };
+}
+
+function renderDigestContent(digest) {
+    const content = document.getElementById('dailyDigestContent');
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowFormatted = tomorrow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    
+    let html = `
+        <div style="margin-bottom: 20px; padding: 16px; background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%); border-radius: 8px; color: white;">
+            <h2 style="margin: 0 0 8px 0; font-size: 20px;">📋 Your Daily Digest</h2>
+            <p style="margin: 0; opacity: 0.9; font-size: 14px;">${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+        </div>
+    `;
+    
+    // Overdue tasks (highest priority)
+    if (digest.overdue.length > 0) {
+        html += `
+            <div class="digest-section" style="border-left-color: #DC2626;">
+                <div class="digest-section-title">
+                    <span>🚨 Overdue (${digest.overdue.length})</span>
+                </div>
+                <ul class="digest-task-list">
+                    ${digest.overdue.map(task => `
+                        <li class="digest-task-item" onclick="editTask('${task.section}', ${task.groupIndex}, ${task.taskIndex}); closeDailyDigest();">
+                            <div class="digest-task-title">${escapeHtml(task.title)}</div>
+                            <div class="digest-task-meta">
+                                <span>📁 ${escapeHtml(task.groupName)}</span>
+                                ${task.dueDate ? `<span>📅 Due: ${task.dueDate}</span>` : ''}
+                                ${task.estimatedMinutes ? `<span>⏱️ ${task.estimatedMinutes} min</span>` : ''}
+                                ${task.tags && task.tags.length > 0 ? `<span>🏷️ ${task.tags.map(t => escapeHtml(t)).join(', ')}</span>` : ''}
+                            </div>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // Tasks due tomorrow
+    if (digest.dueTomorrow.length > 0) {
+        html += `
+            <div class="digest-section" style="border-left-color: #F59E0B;">
+                <div class="digest-section-title">
+                    <span>📅 Due Tomorrow - ${tomorrowFormatted} (${digest.dueTomorrow.length})</span>
+                </div>
+                <ul class="digest-task-list">
+                    ${digest.dueTomorrow.map(task => `
+                        <li class="digest-task-item" onclick="editTask('${task.section}', ${task.groupIndex}, ${task.taskIndex}); closeDailyDigest();">
+                            <div class="digest-task-title">${escapeHtml(task.title)}</div>
+                            <div class="digest-task-meta">
+                                <span>📁 ${escapeHtml(task.groupName)}</span>
+                                ${task.estimatedMinutes ? `<span>⏱️ ${task.estimatedMinutes} min</span>` : ''}
+                                ${task.emotionalWeight ? `<span>${task.emotionalWeight === 'light' ? '💨' : task.emotionalWeight === 'moderate' ? '⚖️' : '🎯'} ${task.emotionalWeight}</span>` : ''}
+                                ${task.tags && task.tags.length > 0 ? `<span>🏷️ ${task.tags.map(t => escapeHtml(t)).join(', ')}</span>` : ''}
+                            </div>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // Tasks needing attention
+    if (digest.needsAttention.length > 0) {
+        html += `
+            <div class="digest-section" style="border-left-color: #EA580C;">
+                <div class="digest-section-title">
+                    <span>⚡ Needs Attention (${digest.needsAttention.length})</span>
+                </div>
+                <ul class="digest-task-list">
+                    ${digest.needsAttention.map(task => `
+                        <li class="digest-task-item" onclick="editTask('${task.section}', ${task.groupIndex}, ${task.taskIndex}); closeDailyDigest();">
+                            <div class="digest-task-title">${escapeHtml(task.title)}</div>
+                            <div class="digest-task-meta">
+                                <span>📁 ${escapeHtml(task.groupName)}</span>
+                                ${task.status === 'in-progress' ? '<span>🔵 In Progress</span>' : ''}
+                                ${task.emotionalWeight === 'heavy' ? '<span>🎯 Heavy</span>' : ''}
+                                ${task.tags && task.tags.includes('urgent') ? '<span>🚨 Urgent</span>' : ''}
+                                ${task.estimatedMinutes ? `<span>⏱️ ${task.estimatedMinutes} min</span>` : ''}
+                            </div>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    // Rest of tasks summary
+    if (digest.restBySection.today.length > 0 || digest.restBySection.longterm.length > 0) {
+        html += `
+            <div class="digest-section" style="border-left-color: #D4C9BA;">
+                <div class="digest-section-title">
+                    <span>📝 Rest of Your Tasks (${digest.summary.restCount})</span>
+                </div>
+                ${digest.restBySection.today.length > 0 ? `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">⚡ Today (${digest.restBySection.today.length})</div>
+                        <div class="digest-summary">
+                            ${digest.restBySection.today.slice(0, 5).map(t => escapeHtml(t.title)).join(' • ')}
+                            ${digest.restBySection.today.length > 5 ? ` • ...and ${digest.restBySection.today.length - 5} more` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+                ${digest.restBySection.longterm.length > 0 ? `
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">📅 Long-term (${digest.restBySection.longterm.length})</div>
+                        <div class="digest-summary">
+                            ${digest.restBySection.longterm.slice(0, 5).map(t => escapeHtml(t.title)).join(' • ')}
+                            ${digest.restBySection.longterm.length > 5 ? ` • ...and ${digest.restBySection.longterm.length - 5} more` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    // Empty state
+    if (digest.overdue.length === 0 && digest.dueTomorrow.length === 0 && 
+        digest.needsAttention.length === 0 && digest.summary.restCount === 0) {
+        html += `
+            <div class="digest-empty">
+                <p>🎉 You're all caught up! No active tasks at the moment.</p>
+            </div>
+        `;
+    }
+    
+    // Summary stats
+    html += `
+        <div style="margin-top: 20px; padding: 16px; background: var(--accent-subtle); border-radius: 8px; text-align: center;">
+            <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--accent-primary);">${digest.summary.totalActive}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Total Active</div>
+                </div>
+                ${digest.summary.overdueCount > 0 ? `
+                    <div>
+                        <div style="font-size: 24px; font-weight: 700; color: #DC2626;">${digest.summary.overdueCount}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Overdue</div>
+                    </div>
+                ` : ''}
+                ${digest.summary.dueTomorrowCount > 0 ? `
+                    <div>
+                        <div style="font-size: 24px; font-weight: 700; color: #F59E0B;">${digest.summary.dueTomorrowCount}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Due Tomorrow</div>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+}
+
+window.showDailyDigest = function() {
+    const digest = generateDailyDigest();
+    renderDigestContent(digest);
+    const modal = document.getElementById('dailyDigestModal');
+    modal.classList.add('active');
+    
+    // Add escape key handler
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            closeDailyDigest();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
+}
+
+window.closeDailyDigest = function() {
+    document.getElementById('dailyDigestModal').classList.remove('active');
+}
+
 // Initialize on load
 init();
