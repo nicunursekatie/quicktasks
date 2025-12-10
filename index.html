@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Dashboard</title>
+    <!-- Google API Script -->
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         * {
             margin: 0;
@@ -4056,29 +4059,290 @@
             return tasks;
         }
 
-        // Google Calendar Integration (placeholder for future implementation)
-        function connectGoogleCalendar() {
-            // This would typically use Google's OAuth 2.0 flow
-            // For now, show a message about future implementation
-            alert('Google Calendar integration coming soon!\\n\\nThis will allow you to:\\n• See your Google Calendar events\\n• Sync tasks with Google Calendar\\n• Get reminders from both systems');
+        // ===== GOOGLE CALENDAR INTEGRATION =====
+        const GOOGLE_API_KEY = 'AIzaSyBH6vEF4XiVZuMblf6-lG52rsty5c5uIZ0';
+        const GOOGLE_CLIENT_ID = '708407777052-539vipe049n1fjujkrgdh4ks0h3ll3s2.apps.googleusercontent.com';
+        const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
 
-            // Future implementation would look like:
-            // 1. Initialize Google API client
-            // 2. Request calendar.readonly scope
-            // 3. Fetch events and store in googleCalendarEvents
-            // 4. Re-render the calendar
-        }
+        let googleTokenClient = null;
+        let googleAccessToken = null;
+        let isGoogleCalendarConnected = false;
 
-        function updateGoogleCalendarStatus(connected) {
-            const statusEl = document.getElementById('googleCalendarStatus');
-            if (connected) {
-                statusEl.textContent = '✓ Connected to Google Calendar';
-                statusEl.classList.add('connected');
-            } else {
-                statusEl.textContent = 'Google Calendar not connected';
-                statusEl.classList.remove('connected');
+        // Initialize Google API when the page loads
+        function initializeGoogleAPI() {
+            // Load the Google API client
+            if (typeof gapi !== 'undefined') {
+                gapi.load('client', async () => {
+                    try {
+                        await gapi.client.init({
+                            apiKey: GOOGLE_API_KEY,
+                            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+                        });
+                        console.log('Google API client initialized');
+
+                        // Check if we have a stored token
+                        const storedToken = localStorage.getItem('googleCalendarToken');
+                        if (storedToken) {
+                            googleAccessToken = storedToken;
+                            gapi.client.setToken({ access_token: storedToken });
+                            // Verify token is still valid by fetching events
+                            try {
+                                await fetchGoogleCalendarEvents();
+                                isGoogleCalendarConnected = true;
+                                updateGoogleCalendarStatus(true);
+                            } catch (e) {
+                                // Token expired, clear it
+                                localStorage.removeItem('googleCalendarToken');
+                                googleAccessToken = null;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error initializing Google API:', error);
+                    }
+                });
+            }
+
+            // Initialize the token client for OAuth
+            if (typeof google !== 'undefined' && google.accounts) {
+                googleTokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_CLIENT_ID,
+                    scope: GOOGLE_SCOPES,
+                    callback: handleGoogleAuthResponse,
+                });
             }
         }
+
+        // Wait for scripts to load then initialize
+        window.addEventListener('load', () => {
+            // Give the scripts a moment to fully load
+            setTimeout(initializeGoogleAPI, 500);
+        });
+
+        function connectGoogleCalendar() {
+            if (!googleTokenClient) {
+                // Try to initialize again
+                if (typeof google !== 'undefined' && google.accounts) {
+                    googleTokenClient = google.accounts.oauth2.initTokenClient({
+                        client_id: GOOGLE_CLIENT_ID,
+                        scope: GOOGLE_SCOPES,
+                        callback: handleGoogleAuthResponse,
+                    });
+                } else {
+                    alert('Google API is still loading. Please try again in a moment.');
+                    return;
+                }
+            }
+
+            // Request access token
+            googleTokenClient.requestAccessToken();
+        }
+
+        function handleGoogleAuthResponse(response) {
+            if (response.error) {
+                console.error('Google Auth Error:', response);
+                alert('Failed to connect to Google Calendar. Please try again.');
+                return;
+            }
+
+            googleAccessToken = response.access_token;
+            localStorage.setItem('googleCalendarToken', googleAccessToken);
+            gapi.client.setToken({ access_token: googleAccessToken });
+
+            isGoogleCalendarConnected = true;
+            updateGoogleCalendarStatus(true);
+
+            // Fetch calendar events
+            fetchGoogleCalendarEvents();
+        }
+
+        async function fetchGoogleCalendarEvents() {
+            if (!googleAccessToken) {
+                console.log('No access token available');
+                return;
+            }
+
+            try {
+                // Get events for the next 3 months and past 1 month
+                const oneMonthAgo = new Date();
+                oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                const threeMonthsLater = new Date();
+                threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+
+                const response = await gapi.client.calendar.events.list({
+                    calendarId: 'primary',
+                    timeMin: oneMonthAgo.toISOString(),
+                    timeMax: threeMonthsLater.toISOString(),
+                    showDeleted: false,
+                    singleEvents: true,
+                    maxResults: 250,
+                    orderBy: 'startTime',
+                });
+
+                const events = response.result.items || [];
+
+                // Convert to our format
+                googleCalendarEvents = events.map(event => {
+                    const start = event.start.dateTime || event.start.date;
+                    const dateStr = start.split('T')[0]; // Get just the date part
+
+                    return {
+                        id: event.id,
+                        title: event.summary || '(No title)',
+                        date: dateStr,
+                        startTime: event.start.dateTime ? new Date(event.start.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'All day',
+                        endTime: event.end.dateTime ? new Date(event.end.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : null,
+                        location: event.location || null,
+                        description: event.description || null,
+                        isGoogleEvent: true
+                    };
+                });
+
+                console.log(`Fetched ${googleCalendarEvents.length} Google Calendar events`);
+
+                // Also try to fetch from other calendars the user has access to
+                await fetchOtherCalendars();
+
+                // Re-render calendars to show the events
+                renderCalendar();
+                if (document.getElementById('calendarFrameView').classList.contains('active')) {
+                    renderCalendarFrame();
+                }
+
+            } catch (error) {
+                console.error('Error fetching Google Calendar events:', error);
+                if (error.status === 401) {
+                    // Token expired
+                    disconnectGoogleCalendar();
+                    alert('Google Calendar session expired. Please reconnect.');
+                }
+                throw error;
+            }
+        }
+
+        async function fetchOtherCalendars() {
+            try {
+                const response = await gapi.client.calendar.calendarList.list();
+                const calendars = response.result.items || [];
+
+                // Fetch events from each calendar
+                for (const calendar of calendars) {
+                    if (calendar.id === 'primary') continue; // Already fetched
+
+                    try {
+                        const oneMonthAgo = new Date();
+                        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+                        const threeMonthsLater = new Date();
+                        threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
+
+                        const eventsResponse = await gapi.client.calendar.events.list({
+                            calendarId: calendar.id,
+                            timeMin: oneMonthAgo.toISOString(),
+                            timeMax: threeMonthsLater.toISOString(),
+                            showDeleted: false,
+                            singleEvents: true,
+                            maxResults: 100,
+                            orderBy: 'startTime',
+                        });
+
+                        const events = eventsResponse.result.items || [];
+
+                        const mappedEvents = events.map(event => {
+                            const start = event.start.dateTime || event.start.date;
+                            const dateStr = start.split('T')[0];
+
+                            return {
+                                id: event.id,
+                                title: event.summary || '(No title)',
+                                date: dateStr,
+                                startTime: event.start.dateTime ? new Date(event.start.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'All day',
+                                calendarName: calendar.summary,
+                                calendarColor: calendar.backgroundColor,
+                                isGoogleEvent: true
+                            };
+                        });
+
+                        googleCalendarEvents = [...googleCalendarEvents, ...mappedEvents];
+                    } catch (e) {
+                        console.log(`Could not fetch events from calendar: ${calendar.summary}`);
+                    }
+                }
+
+                console.log(`Total Google Calendar events: ${googleCalendarEvents.length}`);
+            } catch (error) {
+                console.log('Could not fetch calendar list:', error);
+            }
+        }
+
+        function disconnectGoogleCalendar() {
+            const token = googleAccessToken;
+            googleAccessToken = null;
+            isGoogleCalendarConnected = false;
+            googleCalendarEvents = [];
+            localStorage.removeItem('googleCalendarToken');
+
+            if (token && typeof google !== 'undefined' && google.accounts) {
+                google.accounts.oauth2.revoke(token, () => {
+                    console.log('Google token revoked');
+                });
+            }
+
+            updateGoogleCalendarStatus(false);
+            renderCalendar();
+            if (document.getElementById('calendarFrameView').classList.contains('active')) {
+                renderCalendarFrame();
+            }
+        }
+
+        // Refresh events periodically (every 5 minutes)
+        setInterval(() => {
+            if (isGoogleCalendarConnected) {
+                fetchGoogleCalendarEvents();
+            }
+        }, 5 * 60 * 1000);
+
+        function updateGoogleCalendarStatus(connected) {
+            // Update all status elements
+            const statusElements = [
+                document.getElementById('googleCalendarStatus'),
+                document.getElementById('calendarFrameGoogleStatus')
+            ];
+
+            const connectButtons = document.querySelectorAll('.google-connect-btn');
+
+            statusElements.forEach(el => {
+                if (el) {
+                    if (connected) {
+                        el.textContent = '✓ Connected to Google Calendar';
+                        el.classList.add('connected');
+                    } else {
+                        el.textContent = 'Google Calendar not connected';
+                        el.classList.remove('connected');
+                    }
+                }
+            });
+
+            // Update connect buttons
+            connectButtons.forEach(btn => {
+                if (connected) {
+                    btn.innerHTML = `
+                        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        Disconnect
+                    `;
+                    btn.onclick = disconnectGoogleCalendar;
+                } else {
+                    btn.innerHTML = `
+                        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        Connect Google Calendar
+                    `;
+                    btn.onclick = connectGoogleCalendar;
+                }
+            });
+        }
+
+        // Make Google Calendar functions globally available
+        window.connectGoogleCalendar = connectGoogleCalendar;
+        window.disconnectGoogleCalendar = disconnectGoogleCalendar;
+        window.fetchGoogleCalendarEvents = fetchGoogleCalendarEvents;
 
         // Make functions globally available
         window.openFullCalendar = openFullCalendar;
