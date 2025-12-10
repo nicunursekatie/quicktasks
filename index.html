@@ -4344,12 +4344,22 @@
         window.disconnectGoogleCalendar = disconnectGoogleCalendar;
         window.fetchGoogleCalendarEvents = fetchGoogleCalendarEvents;
 
+        // Debug function - type checkGoogleCalendar() in console
+        window.checkGoogleCalendar = function() {
+            console.log('Connected:', isGoogleCalendarConnected);
+            console.log('Events count:', googleCalendarEvents.length);
+            console.log('Sample events:', googleCalendarEvents.slice(0, 5));
+            if (googleCalendarEvents.length > 0) {
+                console.log('Date format example:', googleCalendarEvents[0].date);
+            }
+            return googleCalendarEvents;
+        };
+
         // Make functions globally available
         window.openFullCalendar = openFullCalendar;
         window.closeFullCalendar = closeFullCalendar;
         window.fullCalendarPrevMonth = fullCalendarPrevMonth;
         window.fullCalendarNextMonth = fullCalendarNextMonth;
-        window.connectGoogleCalendar = connectGoogleCalendar;
 
         // ===== LET'S GET TO WORK SESSION =====
         let workSessionTasks = [];
