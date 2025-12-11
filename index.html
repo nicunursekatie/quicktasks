@@ -1331,6 +1331,111 @@
             color: #16a34a;
         }
 
+        /* Calendar Picker */
+        .calendar-picker-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-page);
+            border-radius: 10px;
+            border: 1px solid var(--border-light);
+        }
+
+        .calendar-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .calendar-picker-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .calendar-picker-toggle {
+            font-size: 12px;
+            color: var(--accent-primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .calendar-picker-toggle:hover {
+            text-decoration: underline;
+        }
+
+        .calendar-picker-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .calendar-picker-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .calendar-picker-item:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .calendar-picker-item.disabled {
+            opacity: 0.5;
+        }
+
+        .calendar-picker-checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid var(--border-medium);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .calendar-picker-item.selected .calendar-picker-checkbox {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .calendar-picker-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .calendar-picker-name {
+            font-size: 13px;
+            color: var(--text-primary);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .calendar-picker-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-page);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
         /* Notes Section */
         .notes-section {
             padding: 16px;
@@ -3093,6 +3198,16 @@
                         Connect Google Calendar
                     </button>
                 </div>
+                <!-- Calendar Picker -->
+                <div class="calendar-picker-section" id="calendarPickerSection" style="display: none;">
+                    <div class="calendar-picker-header">
+                        <span class="calendar-picker-title">Select Calendars to Display</span>
+                        <button class="calendar-picker-toggle" onclick="toggleAllCalendars()">Toggle All</button>
+                    </div>
+                    <div class="calendar-picker-list" id="calendarPickerList">
+                        <!-- Calendar items will be rendered here -->
+                    </div>
+                </div>
             </div>
 
             <!-- Tasks Content (toggled with calendar) -->
@@ -3865,7 +3980,8 @@
 
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
                 const dayTasks = tasksWithDueDates[dateStr] || [];
-                const dayGoogleEvents = googleCalendarEvents.filter(e => e.date === dateStr);
+                const filteredEvents = getFilteredGoogleEvents();
+                const dayGoogleEvents = filteredEvents.filter(e => e.date === dateStr);
 
                 const classes = ['calendar-frame-day'];
                 if (isToday) classes.push('today');
@@ -3982,7 +4098,8 @@
 
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
                 const dayTasks = tasksWithDueDates[dateStr] || [];
-                const dayGoogleEvents = googleCalendarEvents.filter(e => e.date === dateStr);
+                const filteredEvents = getFilteredGoogleEvents();
+                const dayGoogleEvents = filteredEvents.filter(e => e.date === dateStr);
 
                 const classes = ['full-calendar-day'];
                 if (isToday) classes.push('today');
@@ -4202,6 +4319,7 @@
                         endTime: event.end.dateTime ? new Date(event.end.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : null,
                         location: event.location || null,
                         description: event.description || null,
+                        calendarId: 'primary',
                         isGoogleEvent: true
                     };
                 });
@@ -4210,6 +4328,9 @@
 
                 // Also try to fetch from other calendars the user has access to
                 await fetchOtherCalendars();
+
+                // Fetch calendar list for the picker
+                await fetchCalendarList();
 
                 // Re-render calendars to show the events
                 renderCalendar();
@@ -4264,6 +4385,7 @@
                                 title: event.summary || '(No title)',
                                 date: dateStr,
                                 startTime: event.start.dateTime ? new Date(event.start.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'All day',
+                                calendarId: calendar.id,
                                 calendarName: calendar.summary,
                                 calendarColor: calendar.backgroundColor,
                                 isGoogleEvent: true
@@ -4363,6 +4485,118 @@
             }
             return googleCalendarEvents;
         };
+
+        // ===== CALENDAR PICKER =====
+        let availableCalendars = []; // List of all calendars from Google
+        let selectedCalendarIds = JSON.parse(localStorage.getItem('selectedCalendarIds') || '[]');
+
+        async function fetchCalendarList() {
+            if (!googleAccessToken || !gapi.client.calendar) {
+                return;
+            }
+
+            try {
+                const response = await gapi.client.calendar.calendarList.list();
+                availableCalendars = response.result.items || [];
+                console.log('Available calendars:', availableCalendars.map(c => c.summary));
+
+                // If no calendars are selected yet, select all by default
+                if (selectedCalendarIds.length === 0) {
+                    selectedCalendarIds = availableCalendars.map(c => c.id);
+                    saveSelectedCalendars();
+                }
+
+                renderCalendarPicker();
+                showCalendarPicker();
+            } catch (error) {
+                console.error('Error fetching calendar list:', error);
+            }
+        }
+
+        function renderCalendarPicker() {
+            const list = document.getElementById('calendarPickerList');
+            if (!list || availableCalendars.length === 0) return;
+
+            list.innerHTML = availableCalendars.map(calendar => {
+                const isSelected = selectedCalendarIds.includes(calendar.id);
+                const color = calendar.backgroundColor || '#4285F4';
+
+                return `
+                    <div class="calendar-picker-item ${isSelected ? 'selected' : ''}"
+                         onclick="toggleCalendarSelection('${calendar.id}')">
+                        <div class="calendar-picker-checkbox">${isSelected ? '✓' : ''}</div>
+                        <div class="calendar-picker-color" style="background: ${color}"></div>
+                        <span class="calendar-picker-name">${calendar.summary}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleCalendarSelection(calendarId) {
+            const index = selectedCalendarIds.indexOf(calendarId);
+            if (index > -1) {
+                selectedCalendarIds.splice(index, 1);
+            } else {
+                selectedCalendarIds.push(calendarId);
+            }
+
+            saveSelectedCalendars();
+            renderCalendarPicker();
+            // Re-render calendars with new filter (no need to re-fetch events)
+            renderCalendar();
+            if (document.getElementById('calendarFrameView').classList.contains('active')) {
+                renderCalendarFrame();
+            }
+        }
+
+        function toggleAllCalendars() {
+            if (selectedCalendarIds.length === availableCalendars.length) {
+                // All selected, so deselect all
+                selectedCalendarIds = [];
+            } else {
+                // Select all
+                selectedCalendarIds = availableCalendars.map(c => c.id);
+            }
+
+            saveSelectedCalendars();
+            renderCalendarPicker();
+            // Re-render calendars with new filter (no need to re-fetch events)
+            renderCalendar();
+            if (document.getElementById('calendarFrameView').classList.contains('active')) {
+                renderCalendarFrame();
+            }
+        }
+
+        function saveSelectedCalendars() {
+            localStorage.setItem('selectedCalendarIds', JSON.stringify(selectedCalendarIds));
+        }
+
+        function showCalendarPicker() {
+            const section = document.getElementById('calendarPickerSection');
+            if (section && isGoogleCalendarConnected) {
+                section.style.display = 'block';
+            }
+        }
+
+        function hideCalendarPicker() {
+            const section = document.getElementById('calendarPickerSection');
+            if (section) {
+                section.style.display = 'none';
+            }
+        }
+
+        // Filter events based on selected calendars
+        function getFilteredGoogleEvents() {
+            return googleCalendarEvents.filter(event => {
+                // Events have calendarId property
+                return selectedCalendarIds.includes(event.calendarId);
+            });
+        }
+
+        // Make calendar picker functions globally available
+        window.toggleCalendarSelection = toggleCalendarSelection;
+        window.toggleAllCalendars = toggleAllCalendars;
+        window.fetchCalendarList = fetchCalendarList;
 
         // Make functions globally available
         window.openFullCalendar = openFullCalendar;
