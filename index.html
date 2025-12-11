@@ -4076,9 +4076,11 @@
                     try {
                         await gapi.client.init({
                             apiKey: GOOGLE_API_KEY,
-                            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
                         });
-                        console.log('Google API client initialized');
+
+                        // Explicitly load the Calendar API
+                        await gapi.client.load('calendar', 'v3');
+                        console.log('Google API client initialized with Calendar API');
 
                         // Check if we have a stored token
                         const storedToken = localStorage.getItem('googleCalendarToken');
