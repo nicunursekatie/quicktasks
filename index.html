@@ -4164,6 +4164,13 @@
             }
 
             try {
+                // Ensure Calendar API is loaded
+                if (!gapi.client.calendar) {
+                    console.log('Loading Calendar API...');
+                    await gapi.client.load('calendar', 'v3');
+                    console.log('Calendar API loaded');
+                }
+
                 // Get events for the next 3 months and past 1 month
                 const oneMonthAgo = new Date();
                 oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
