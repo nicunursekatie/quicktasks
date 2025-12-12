@@ -4346,18 +4346,21 @@
                 let eventsHtml = '';
 
                 // Show tasks
-                dayTasks.slice(0, 3).forEach(task => {
+                const shownTasks = dayTasks.slice(0, 3);
+                shownTasks.forEach(task => {
                     eventsHtml += `<div class="calendar-frame-event" title="${task.text}">${task.text}</div>`;
                 });
 
                 // Show Google Calendar events
-                dayGoogleEvents.slice(0, 2).forEach(event => {
+                const shownGoogleEvents = dayGoogleEvents.slice(0, 2);
+                shownGoogleEvents.forEach(event => {
                     eventsHtml += `<div class="calendar-frame-event google" title="${event.title}">${event.title}</div>`;
                 });
 
                 const totalEvents = dayTasks.length + dayGoogleEvents.length;
-                if (totalEvents > 3) {
-                    eventsHtml += `<div class="calendar-frame-more">+${totalEvents - 3} more</div>`;
+                const shownEvents = shownTasks.length + shownGoogleEvents.length;
+                if (totalEvents > shownEvents) {
+                    eventsHtml += `<div class="calendar-frame-more">+${totalEvents - shownEvents} more</div>`;
                 }
 
                 html += `<div class="${classes.join(' ')}" onclick="selectCalendarFrameDate(${year}, ${month}, ${date})">
