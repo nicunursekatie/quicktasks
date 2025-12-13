@@ -1272,7 +1272,7 @@ window.toggleTask = async function(section, groupIndex, taskIndex) {
     // If completing the task, prompt for actual time
     if (!task.completed) {
         task.completed = true;
-        
+
         // Clear focus if completing the active task
         if (settings.activeTask &&
             settings.activeTask.section === section &&
@@ -1296,22 +1296,18 @@ window.toggleTask = async function(section, groupIndex, taskIndex) {
                 // Log time to Firestore for long-term tracking
                 const projectName = taskData[section][groupIndex].groupName;
                 logTimeToFirestore(task.title, projectName, task.estimatedMinutes, task.actualMinutes);
-
-                // Show comparison
-                const diff = task.actualMinutes - task.estimatedMinutes;
-                const diffText = diff > 0
-                    ? `${diff} min over estimate`
-                    : diff < 0
-                    ? `${Math.abs(diff)} min under estimate`
-                    : 'Right on time!';
-
-                const accuracy = diff === 0 ? '🎯' : Math.abs(diff) <= 5 ? '✅' : '📊';
-
-                setTimeout(() => {
-                    alert(`${accuracy} Task completed!\n\nEstimated: ${task.estimatedMinutes} min\nActual: ${task.actualMinutes} min\n${diffText}`);
-                }, 100);
             }
         }
+
+        // Save first, then show follow-up modal
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+
+        // Show follow-up prompt
+        showTaskFollowUpModal(task, section, groupIndex);
+        return; // Exit early - saveData already called
     } else {
         // Uncompleting - just toggle
         task.completed = false;
@@ -1321,6 +1317,86 @@ window.toggleTask = async function(section, groupIndex, taskIndex) {
     renderTasks();
     updateStats();
     updateProgress();
+}
+
+// Task completion follow-up modal
+let currentFollowUpContext = null;
+
+window.showTaskFollowUpModal = function(task, section, groupIndex) {
+    currentFollowUpContext = { task, section, groupIndex };
+
+    document.getElementById('completedTaskTitle').textContent = task.title;
+    document.getElementById('followUpNotes').value = '';
+    document.getElementById('followUpTaskTitle').value = '';
+    document.getElementById('followUpDueDate').value = '';
+    document.getElementById('followUpTaskOptions').style.display = 'none';
+
+    // Default to same section as completed task
+    const sectionRadio = document.querySelector(`input[name="followUpSection"][value="${section}"]`);
+    if (sectionRadio) sectionRadio.checked = true;
+
+    document.getElementById('taskFollowUpModal').classList.add('active');
+
+    // Show options when user starts typing a follow-up task
+    document.getElementById('followUpTaskTitle').addEventListener('input', function() {
+        document.getElementById('followUpTaskOptions').style.display = this.value.trim() ? 'block' : 'none';
+    });
+}
+
+window.closeTaskFollowUpModal = function() {
+    document.getElementById('taskFollowUpModal').classList.remove('active');
+    currentFollowUpContext = null;
+}
+
+window.submitTaskFollowUp = function() {
+    if (!currentFollowUpContext) {
+        closeTaskFollowUpModal();
+        return;
+    }
+
+    const { task, section, groupIndex } = currentFollowUpContext;
+    const notes = document.getElementById('followUpNotes').value.trim();
+    const followUpTitle = document.getElementById('followUpTaskTitle').value.trim();
+
+    // Add notes to the completed task if provided
+    if (notes) {
+        if (!task.notes) {
+            task.notes = '';
+        }
+        const timestamp = new Date().toLocaleDateString();
+        task.notes += (task.notes ? '\n\n' : '') + `[Completed ${timestamp}] ${notes}`;
+        saveData();
+    }
+
+    // Create follow-up task if provided
+    if (followUpTitle) {
+        const followUpSection = document.querySelector('input[name="followUpSection"]:checked').value;
+        const followUpDueDate = document.getElementById('followUpDueDate').value.trim();
+
+        const newTask = {
+            title: followUpTitle,
+            completed: false,
+            status: 'not-started',
+            createdAt: new Date().toISOString()
+        };
+
+        // Parse due date if provided
+        if (followUpDueDate) {
+            const parsedDate = parseNaturalDate(followUpDueDate);
+            if (parsedDate) {
+                newTask.dueDate = parsedDate;
+            }
+        }
+
+        // Add to the same project/group as the original task
+        taskData[followUpSection][groupIndex].tasks.push(newTask);
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+
+    closeTaskFollowUpModal();
 }
 
 // Toggle subtask completion
