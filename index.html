@@ -2191,6 +2191,30 @@
             color: #a855f7;
         }
 
+        .zone.today .zone-title {
+            color: #3b82f6;
+        }
+
+        .zone.tomorrow .zone-title {
+            color: #60a5fa;
+        }
+
+        .zone.week .zone-title {
+            color: #818cf8;
+        }
+
+        .zone.today .zone-title {
+            color: #3b82f6;
+        }
+
+        .zone.tomorrow .zone-title {
+            color: #60a5fa;
+        }
+
+        .zone.week .zone-title {
+            color: #818cf8;
+        }
+
         .section {
             background: var(--bg-card);
             border-radius: 12px;
@@ -2491,6 +2515,21 @@
         .task-item.zone-nice {
             border-left-color: #a855f7;
             background: linear-gradient(90deg, rgba(168, 85, 247, 0.05) 0%, var(--bg-page) 5%);
+        }
+
+        .task-item.zone-today {
+            border-left-color: #3b82f6;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, var(--bg-page) 5%);
+        }
+
+        .task-item.zone-tomorrow {
+            border-left-color: #60a5fa;
+            background: linear-gradient(90deg, rgba(96, 165, 250, 0.05) 0%, var(--bg-page) 5%);
+        }
+
+        .task-item.zone-week {
+            border-left-color: #818cf8;
+            background: linear-gradient(90deg, rgba(129, 140, 248, 0.05) 0%, var(--bg-page) 5%);
         }
 
         .task-zone-indicator {
@@ -3956,7 +3995,37 @@
             </div>
         </div>
 
-        <!-- ZONE B: Today's Focus -->
+        <!-- ZONE B: Today -->
+        <div class="zone today" id="todayZone">
+            <div class="zone-header">
+                <h2 class="zone-title">📅 Today</h2>
+            </div>
+            <div id="todayTasksZone" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <!-- ZONE C: Tomorrow -->
+        <div class="zone tomorrow" id="tomorrowZone">
+            <div class="zone-header">
+                <h2 class="zone-title">📆 Tomorrow</h2>
+            </div>
+            <div id="tomorrowTasksZone" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <!-- ZONE D: This Week -->
+        <div class="zone week" id="weekZone">
+            <div class="zone-header">
+                <h2 class="zone-title">📊 This Week</h2>
+            </div>
+            <div id="weekTasksZone" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <!-- ZONE E: Today's Focus -->
         <div class="zone focus" id="focusZone">
             <div class="zone-header">
                 <h2 class="zone-title">🎯 Today's Focus</h2>
@@ -3966,7 +4035,7 @@
             </div>
         </div>
 
-        <!-- ZONE C: The Inbox -->
+        <!-- ZONE F: The Inbox -->
         <div class="zone inbox" id="inboxZone">
             <div class="zone-header">
                 <h2 class="zone-title">📥 The Inbox</h2>
@@ -3977,7 +4046,7 @@
             </div>
         </div>
 
-        <!-- ZONE D: Would Be Nice -->
+        <!-- ZONE G: Would Be Nice -->
         <div class="zone nice" id="niceZone">
             <div class="zone-header">
                 <h2 class="zone-title">✨ Would Be Nice</h2>

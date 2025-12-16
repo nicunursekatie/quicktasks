@@ -621,6 +621,83 @@ function getTasksForInboxZone() {
     });
 }
 
+// Get tasks for Today zone
+function getTasksForTodayZone() {
+    const allTasks = getAllTasksWithMetadata();
+    const today = getTodayDate();
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        
+        // Check if due date is today (but not in critical zone)
+        const isDueToday = (task.dueDate === today) || (task.externalDeadline === today);
+        
+        // Don't show if it's explicitly in critical zone (already shown there)
+        if (task.zone === 'critical') return false;
+        
+        return isDueToday;
+    });
+}
+
+// Get tasks for Tomorrow zone
+function getTasksForTomorrowZone() {
+    const allTasks = getAllTasksWithMetadata();
+    const tomorrow = getDateDaysFromToday(1);
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        
+        // Check if due date is tomorrow (but not in critical zone)
+        const isDueTomorrow = (task.dueDate === tomorrow) || (task.externalDeadline === tomorrow);
+        
+        // Don't show if it's explicitly in critical zone (already shown there)
+        if (task.zone === 'critical') return false;
+        
+        return isDueTomorrow;
+    });
+}
+
+// Get tasks for This Week zone
+function getTasksForWeekZone() {
+    const allTasks = getAllTasksWithMetadata();
+    const today = getTodayDate();
+    const tomorrow = getDateDaysFromToday(1);
+    const weekEnd = getDateDaysFromToday(7); // 7 days from today (inclusive)
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        
+        // Don't show if already in critical zone
+        if (task.zone === 'critical') return false;
+        
+        // Check if due date is within this week (but not today or tomorrow, as they're in separate zones)
+        const taskDate = task.dueDate || task.externalDeadline;
+        if (!taskDate) return false;
+        
+        // Skip if due today or tomorrow (they're in separate zones)
+        if (taskDate === today || taskDate === tomorrow) {
+            return false;
+        }
+        
+        // Check if within 7 days from today (day 2-7)
+        if (isDateWithinDays(taskDate, 7)) {
+            // But exclude today and tomorrow
+            const taskDateObj = new Date(taskDate);
+            taskDateObj.setHours(0, 0, 0, 0);
+            const todayDate = new Date(today);
+            todayDate.setHours(0, 0, 0, 0);
+            const tomorrowDate = new Date(tomorrow);
+            tomorrowDate.setHours(0, 0, 0, 0);
+            
+            if (taskDateObj > tomorrowDate) {
+                return true;
+            }
+        }
+        
+        return false;
+    });
+}
+
 // Get tasks for Nice zone
 function getTasksForNiceZone() {
     const allTasks = getAllTasksWithMetadata();
@@ -721,6 +798,9 @@ function renderZone(zoneType, containerId) {
 function renderTasks() {
     // Render zones
     renderZone('critical', 'criticalTasks');
+    renderZone('today', 'todayTasksZone');
+    renderZone('tomorrow', 'tomorrowTasksZone');
+    renderZone('week', 'weekTasksZone');
     renderZone('focus', 'focusTasks');
     renderZone('inbox', 'inboxTasks');
     renderZone('nice', 'niceTasks');
@@ -1282,8 +1362,19 @@ function handleZoneDrop(e) {
     
     // Determine target zone from container ID
     let targetZone = null;
+    let setDueDate = null;
+    
     if (dropTarget.id === 'criticalTasks') {
         targetZone = 'critical';
+    } else if (dropTarget.id === 'todayTasksZone') {
+        // Set due date to today
+        setDueDate = getTodayDate();
+    } else if (dropTarget.id === 'tomorrowTasksZone') {
+        // Set due date to tomorrow
+        setDueDate = getDateDaysFromToday(1);
+    } else if (dropTarget.id === 'weekTasksZone') {
+        // Set due date to end of week (7 days from today)
+        setDueDate = getDateDaysFromToday(7);
     } else if (dropTarget.id === 'focusTasks') {
         // For focus zone, toggle the focus flag instead of setting zone
         const task = taskData[draggedSection][draggedGroupIndex].tasks[draggedTaskIndex];
@@ -1326,12 +1417,20 @@ function handleZoneDrop(e) {
     }
     
     try {
-        // Update zone property
-        task.zone = targetZone;
-        
-        // Auto-update zone properties if moving to critical
-        if (targetZone === 'critical' && !task.isBlocking) {
-            task.isBlocking = true;
+        if (targetZone) {
+            // Update zone property
+            task.zone = targetZone;
+            
+            // Auto-update zone properties if moving to critical
+            if (targetZone === 'critical' && !task.isBlocking) {
+                task.isBlocking = true;
+            }
+        } else if (setDueDate) {
+            // Set due date for date-based zones
+            task.dueDate = setDueDate;
+            // Clear zone so it auto-assigns based on the due date
+            delete task.zone;
+            updateTaskZoneProperties(task);
         }
         
         saveData();
