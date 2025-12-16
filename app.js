@@ -3139,87 +3139,212 @@ window.convertToEvent = async function(section, groupIndex, taskIndex) {
         return;
     }
     
-    // Ask for event details
-    const eventTitle = await showCustomModal(
-        '📅 Convert to Calendar Event',
-        `Create a calendar event from this task?\n\nTask: "${taskTitle}"\n\nEnter event title:`,
-        taskTitle
-    );
+    // Open the comprehensive event creation modal and pre-fill with task data
+    showNewEventModal();
     
-    if (!eventTitle || !eventTitle.trim()) return;
-    
-    // Ask for date
-    const eventDate = await showCustomModal(
-        '📅 Event Date',
-        `When should this event occur?\n\nEnter date (today, tomorrow, YYYY-MM-DD, or leave blank for task due date):`,
-        task.dueDate || task.externalDeadline || ''
-    );
-    
-    let dateStr = '';
-    if (eventDate && eventDate.trim()) {
-        // Try to parse natural language date
-        const parsed = parseNaturalDate(eventDate.trim());
-        dateStr = parsed || eventDate.trim();
-    } else if (task.dueDate || task.externalDeadline) {
-        dateStr = task.dueDate || task.externalDeadline;
-    } else {
-        // Default to today
-        dateStr = getTodayDate();
+    // Pre-fill the form with task data
+    setTimeout(() => {
+        document.getElementById('newEventTitle').value = taskTitle;
+        if (task.dueDate || task.externalDeadline) {
+            document.getElementById('newEventDate').value = task.dueDate || task.externalDeadline;
+        }
+        if (task.notes || task.description) {
+            document.getElementById('newEventDescription').value = (task.notes || task.description || '');
+        }
+        if (task.location) {
+            document.getElementById('newEventLocation').value = task.location;
+        }
+        
+        // Store reference to delete task after event creation
+        window._convertingTask = { section, groupIndex, taskIndex };
+        
+        // Modify submit button to handle conversion
+        const submitBtn = document.querySelector('#newEventModal .modal-btn-submit');
+        const originalOnclick = submitBtn.onclick;
+        submitBtn.onclick = async function() {
+            await submitNewEvent();
+            // If conversion was successful, offer to delete the original task
+            if (window._convertingTask) {
+                const { section, groupIndex, taskIndex } = window._convertingTask;
+                const deleteTask = await showConfirmModal(
+                    '✅ Event Created',
+                    'Would you like to delete the original task now that it\'s a calendar event?'
+                );
+                
+                if (deleteTask) {
+                    taskData[section][groupIndex].tasks.splice(taskIndex, 1);
+                    saveData();
+                    renderTasks();
+                    updateStats();
+                    updateProgress();
+                }
+                delete window._convertingTask;
+                // Restore original onclick
+                submitBtn.onclick = originalOnclick;
+            }
+        };
+    }, 100);
+}
+
+// New Event Modal Functions
+window.showNewEventModal = function() {
+    // Check if Google Calendar is connected
+    if (typeof isGoogleCalendarConnected === 'undefined' || !isGoogleCalendarConnected) {
+        showConfirmModal(
+            '📅 Google Calendar Required',
+            'To create calendar events, you need to connect your Google Calendar.\n\nWould you like to connect now?'
+        ).then(connect => {
+            if (connect && typeof connectGoogleCalendar === 'function') {
+                connectGoogleCalendar().then(() => {
+                    document.getElementById('newEventModal').classList.add('active');
+                    document.getElementById('newEventTitle').focus();
+                });
+            }
+        });
+        return;
     }
     
-    // Ask for time (optional)
-    const eventTime = await showCustomModal(
-        '📅 Event Time',
-        `What time should this event occur?\n\nEnter time (e.g., "2:00 PM", "14:00", or leave blank for all-day event):`,
-        ''
-    );
+    // Clear form
+    document.getElementById('newEventTitle').value = '';
+    document.getElementById('newEventDate').value = '';
+    document.getElementById('newEventStartTime').value = '';
+    document.getElementById('newEventDuration').value = '60';
+    document.getElementById('newEventEndTime').value = '';
+    document.getElementById('newEventLocation').value = '';
+    document.getElementById('newEventTravelTime').value = '';
+    document.getElementById('newEventDescription').value = '';
+    document.getElementById('newEventReminder15').checked = true;
+    document.getElementById('newEventReminderTravel').checked = false;
+    document.getElementById('newEventReminder1hr').checked = false;
+    document.getElementById('newEventReminder1day').checked = false;
+    document.getElementById('newEventAllDay').checked = false;
+    document.getElementById('newEventLocationMap').style.display = 'none';
     
-    // Build event object for Google Calendar
+    document.getElementById('newEventModal').classList.add('active');
+    document.getElementById('newEventTitle').focus();
+}
+
+window.closeNewEventModal = function() {
+    document.getElementById('newEventModal').classList.remove('active');
+    document.getElementById('newEventLocationMap').style.display = 'none';
+}
+
+window.openLocationPicker = function(locationInputId) {
+    const mapDiv = document.getElementById('newEventLocationMap');
+    if (mapDiv.style.display === 'none') {
+        mapDiv.style.display = 'block';
+        // Initialize Google Maps here - we'll need Google Maps API key
+        // For now, show a placeholder
+        mapDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Google Maps integration coming soon. Enter address manually for now.</div>';
+        
+        // TODO: Implement Google Maps autocomplete/picker
+        // This would require:
+        // 1. Google Maps JavaScript API key
+        // 2. Places API for autocomplete
+        // 3. Geocoding for address → coordinates
+    } else {
+        mapDiv.style.display = 'none';
+    }
+}
+
+window.submitNewEvent = async function() {
+    const title = document.getElementById('newEventTitle').value.trim();
+    if (!title) {
+        alert('Please enter an event title');
+        return;
+    }
+    
+    const dateInput = document.getElementById('newEventDate').value.trim();
+    if (!dateInput) {
+        alert('Please enter a date');
+        return;
+    }
+    
+    // Parse date
+    let dateStr = parseNaturalDate(dateInput) || dateInput;
+    
+    const allDay = document.getElementById('newEventAllDay').checked;
+    let startDateTime, endDateTime;
+    
+    if (allDay) {
+        startDateTime = { date: dateStr };
+        endDateTime = { date: dateStr };
+    } else {
+        const startTimeInput = document.getElementById('newEventStartTime').value.trim();
+        if (!startTimeInput) {
+            alert('Please enter a start time (or check "All-day event")');
+            return;
+        }
+        
+        // Parse start time
+        const startTime = parseTimeInput(startTimeInput);
+        if (!startTime) {
+            alert('Could not parse start time. Please use format like "2:00 PM" or "14:00"');
+            return;
+        }
+        
+        const startDate = new Date(dateStr);
+        startDate.setHours(startTime.hour, startTime.minute, 0, 0);
+        
+        // Parse end time or duration
+        const endTimeInput = document.getElementById('newEventEndTime').value.trim();
+        let endDate;
+        
+        if (endTimeInput) {
+            const endTime = parseTimeInput(endTimeInput);
+            if (!endTime) {
+                alert('Could not parse end time. Please use format like "3:00 PM" or "15:00"');
+                return;
+            }
+            endDate = new Date(dateStr);
+            endDate.setHours(endTime.hour, endTime.minute, 0, 0);
+        } else {
+            const duration = parseInt(document.getElementById('newEventDuration').value) || 60;
+            endDate = new Date(startDate);
+            endDate.setMinutes(endDate.getMinutes() + duration);
+        }
+        
+        startDateTime = { dateTime: startDate.toISOString() };
+        endDateTime = { dateTime: endDate.toISOString() };
+    }
+    
+    // Build event object
     const event = {
-        summary: eventTitle.trim(),
-        description: task.notes || task.description || '',
-        location: task.location || ''
+        summary: title,
+        description: document.getElementById('newEventDescription').value.trim(),
+        location: document.getElementById('newEventLocation').value.trim(),
+        start: startDateTime,
+        end: endDateTime
     };
     
-    // Set start and end times
-    if (eventTime && eventTime.trim()) {
-        // Parse time (assume same day if no date in time string)
-        const timeStr = eventTime.trim();
-        let hour, minute;
-        
-        // Try parsing "2:00 PM" or "14:00" format
-        if (timeStr.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
-            // 12-hour format
-            const parts = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-            hour = parseInt(parts[1]);
-            minute = parseInt(parts[2]);
-            const isPM = parts[3].toUpperCase() === 'PM';
-            if (isPM && hour !== 12) hour += 12;
-            if (!isPM && hour === 12) hour = 0;
-        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
-            // 24-hour format
-            const parts = timeStr.split(':');
-            hour = parseInt(parts[0]);
-            minute = parseInt(parts[1]);
-        } else {
-            alert('Could not parse time format. Creating all-day event.');
-            event.start = { date: dateStr };
-            event.end = { date: dateStr };
-        }
-        
-        if (hour !== undefined && minute !== undefined) {
-            const startDateTime = new Date(dateStr);
-            startDateTime.setHours(hour, minute, 0, 0);
-            const endDateTime = new Date(startDateTime);
-            endDateTime.setHours(startDateTime.getHours() + 1); // Default 1 hour duration
-            
-            event.start = { dateTime: startDateTime.toISOString() };
-            event.end = { dateTime: endDateTime.toISOString() };
-        }
-    } else {
-        // All-day event
-        event.start = { date: dateStr };
-        event.end = { date: dateStr };
+    // Add reminders
+    const reminders = [];
+    if (document.getElementById('newEventReminder15').checked) {
+        reminders.push({ method: 'popup', minutes: 15 });
+    }
+    if (document.getElementById('newEventReminder1hr').checked) {
+        reminders.push({ method: 'popup', minutes: 60 });
+    }
+    if (document.getElementById('newEventReminder1day').checked) {
+        reminders.push({ method: 'popup', minutes: 24 * 60 });
+    }
+    
+    const travelTime = parseInt(document.getElementById('newEventTravelTime').value) || 0;
+    if (travelTime > 0 && document.getElementById('newEventReminderTravel').checked) {
+        reminders.push({ method: 'popup', minutes: travelTime });
+    }
+    
+    if (reminders.length > 0) {
+        event.reminders = {
+            useDefault: false,
+            overrides: reminders
+        };
+    }
+    
+    // Add travel time to description if specified
+    if (travelTime > 0) {
+        const travelNote = `\n\n⏱️ Travel time: ${travelTime} minutes`;
+        event.description = (event.description || '') + travelNote;
     }
     
     try {
@@ -3235,32 +3360,60 @@ window.convertToEvent = async function(section, groupIndex, taskIndex) {
             resource: event
         });
         
-        alert(`✅ Event "${eventTitle.trim()}" created in Google Calendar!`);
+        alert(`✅ Event "${title}" created in Google Calendar!`);
         
-        // Refresh calendar events to show the new event
+        // Refresh calendar events
         if (typeof fetchGoogleCalendarEvents === 'function') {
             await fetchGoogleCalendarEvents();
-            renderTasks(); // Re-render to show the new event in zones
-        }
-        
-        // Optionally delete the task after converting
-        const deleteTask = await showConfirmModal(
-            '✅ Event Created',
-            'Would you like to delete the original task now that it\'s a calendar event?'
-        );
-        
-        if (deleteTask) {
-            taskData[section][groupIndex].tasks.splice(taskIndex, 1);
-            saveData();
             renderTasks();
-            updateStats();
-            updateProgress();
         }
+        
+        closeNewEventModal();
         
     } catch (error) {
         console.error('Error creating calendar event:', error);
         alert(`❌ Error creating calendar event: ${error.message}\n\nPlease check that Google Calendar is connected and try again.`);
     }
+}
+
+// Helper function to parse time input (2:00 PM, 14:00, etc.)
+function parseTimeInput(timeStr) {
+    const trimmed = timeStr.trim();
+    let hour, minute;
+    
+    // Try parsing "2:00 PM" or "2:00PM" format
+    const pmMatch = trimmed.match(/^(\d{1,2}):(\d{2})\s*(PM|AM)$/i);
+    if (pmMatch) {
+        hour = parseInt(pmMatch[1]);
+        minute = parseInt(pmMatch[2]);
+        const isPM = pmMatch[3].toUpperCase() === 'PM';
+        if (isPM && hour !== 12) hour += 12;
+        if (!isPM && hour === 12) hour = 0;
+        return { hour, minute };
+    }
+    
+    // Try parsing 24-hour format "14:00"
+    const hour24Match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (hour24Match) {
+        hour = parseInt(hour24Match[1]);
+        minute = parseInt(hour24Match[2]);
+        if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+            return { hour, minute };
+        }
+    }
+    
+    // Try parsing "2 PM" format (without minutes)
+    const simplePM = trimmed.match(/^(\d{1,2})\s*(PM|AM)$/i);
+    if (simplePM) {
+        hour = parseInt(simplePM[1]);
+        minute = 0;
+        const isPM = simplePM[2].toUpperCase() === 'PM';
+        if (isPM && hour !== 12) hour += 12;
+        if (!isPM && hour === 12) hour = 0;
+        return { hour, minute };
+    }
+    
+    return null;
 }
 
 // Brain dump handler - zero friction task capture
