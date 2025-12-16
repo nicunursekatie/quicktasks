@@ -410,6 +410,13 @@ function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
+// Helper function to get today's date as YYYY-MM-DD
+function getTodayDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return formatDate(today);
+}
+
 // Extract date from task title text (e.g., "finish report by friday")
 function extractDateFromTitle(title) {
     if (!title) return { cleanTitle: title, dueDate: null };
@@ -437,6 +444,8 @@ function extractDateFromTitle(title) {
 function init() {
     updateDateStamp();
     applyTheme();
+    // Migrate existing tasks to zones (one-time migration on first load after update)
+    migrateTasksToZones();
     renderTasks();
     renderNotes();
     updateStats();
@@ -491,13 +500,6 @@ function updateDateStamp() {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const date = new Date().toLocaleDateString('en-US', options);
     document.getElementById('dateStamp').textContent = date;
-}
-
-// Helper function to get today's date as YYYY-MM-DD
-function getTodayDate() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return formatDate(today);
 }
 
 // Helper function to get date X days from today
@@ -629,6 +631,34 @@ function updateTaskZoneProperties(task) {
         task.zone = 'focus';
     } else {
         task.zone = 'inbox';
+    }
+}
+
+// Migrate existing tasks to have zone properties (one-time migration)
+function migrateTasksToZones() {
+    // Check if migration has already been done
+    if (localStorage.getItem('zonesMigrated') === 'true') {
+        return; // Already migrated
+    }
+    
+    let migrated = false;
+    
+    ['today', 'longterm'].forEach(section => {
+        taskData[section].forEach((group) => {
+            group.tasks.forEach((task) => {
+                // Only migrate tasks that don't already have a zone
+                if (!task.zone) {
+                    migrated = true;
+                    updateTaskZoneProperties(task);
+                }
+            });
+        });
+    });
+    
+    if (migrated) {
+        saveData();
+        localStorage.setItem('zonesMigrated', 'true');
+        console.log('Migrated existing tasks to zone-based organization');
     }
 }
 
@@ -4659,12 +4689,6 @@ function getTomorrowDate() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
     return formatDate(tomorrow);
-}
-
-function getTodayDate() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return formatDate(today);
 }
 
 function getAllTasks() {
