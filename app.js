@@ -540,7 +540,7 @@ function getAllTasksWithMetadata() {
     return allTasks;
 }
 
-// Get tasks for Critical zone
+// Get tasks for Must Get Done / Someone Else Relying On Me zone
 function getTasksForCriticalZone() {
     const allTasks = getAllTasksWithMetadata();
     const today = getTodayDate();
@@ -1455,7 +1455,7 @@ function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
                 <button class="focus-btn ${task.isInFocus ? 'active' : ''} ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'active' : ''}"
                         onclick="event.stopPropagation(); toggleFocus('${section}', ${groupIndex}, ${taskIndex})"
                         title="${task.isInFocus ? 'Remove from Today\'s Focus' : 'Add to Today\'s Focus'}">🎯</button>
-                <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'critical')" title="Move to Critical zone">🚨</button>
+                <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'critical')" title="Move to Must Get Done / Someone Else Relying On Me">🚨</button>
                 <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'inbox')" title="Move to Inbox">📥</button>
                 <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'nice')" title="Move to Would Be Nice">✨</button>
                 <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
@@ -2416,7 +2416,7 @@ function loadRefineTask() {
                 onclick="refineToggleQuick('isBlocking')" title="Mark as blocking others">👤 Blocking Others</button>
         <button class="refine-quick-btn ${(changes.isInFocus || task.isInFocus) ? 'active' : ''}" 
                 onclick="refineToggleQuick('isInFocus')" title="Add to Today's Focus">🎯 Add to Focus</button>
-        <button class="refine-quick-btn" onclick="refineQuickMove('critical')" title="Move to Critical zone">🚨 Move to Critical</button>
+        <button class="refine-quick-btn" onclick="refineQuickMove('critical')" title="Move to Must Get Done / Someone Else Relying On Me">🚨 Must Get Done / Someone Relying On Me</button>
         <button class="refine-quick-btn" onclick="refineQuickMove('inbox')" title="Keep in Inbox">📥 Keep in Inbox</button>
         <button class="refine-quick-btn" onclick="refineQuickMove('nice')" title="Move to Would Be Nice">✨ Would Be Nice</button>
     `;
@@ -2541,7 +2541,7 @@ function renderBatchView() {
                     <button class="refine-quick-btn ${(changes.isInFocus || task.isInFocus) ? 'active' : ''}" 
                             onclick="event.stopPropagation(); refineBatchToggle(${index}, 'isInFocus')">🎯 Focus</button>
                     <button class="refine-quick-btn ${changes.zone === 'critical' || task.zone === 'critical' ? 'active' : ''}" 
-                            onclick="event.stopPropagation(); refineBatchSetZone(${index}, 'critical')">🚨 Critical</button>
+                            onclick="event.stopPropagation(); refineBatchSetZone(${index}, 'critical')" title="Must Get Done / Someone Else Relying On Me">🚨 Must Get Done</button>
                 </div>
             </div>
         `;
