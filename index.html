@@ -7,6 +7,50 @@
     <!-- Google API Script -->
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google Maps API - Load with callback -->
+    <script>
+        // Google Maps API will be loaded dynamically when needed
+        window.googleMapsLoaded = false;
+        window.googleMapsAutocomplete = null;
+        window.googleMapsMap = null;
+        window.googleMapsMarker = null;
+        
+        window.loadGoogleMapsAPI = function() {
+            if (window.googleMapsLoaded) return Promise.resolve();
+            
+            return new Promise((resolve, reject) => {
+                // Get API key from settings (will be available after app.js loads)
+                const apiKey = (typeof settings !== 'undefined' && settings?.googleMapsApiKey) || '';
+                if (!apiKey) {
+                    reject(new Error('Google Maps API key not configured. Please add it in Settings.'));
+                    return;
+                }
+                
+                // Check if script already exists
+                if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+                    window.googleMapsLoaded = true;
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMaps`;
+                script.async = true;
+                script.defer = true;
+                
+                window.initGoogleMaps = function() {
+                    window.googleMapsLoaded = true;
+                    resolve();
+                };
+                
+                script.onerror = () => {
+                    reject(new Error('Failed to load Google Maps API. Check your API key and enabled APIs.'));
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -4361,6 +4405,23 @@
                 <strong>🧪 Testing:</strong><br>
                 • Type <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">checkFocusStatus()</code> in console to check status<br>
                 • Type <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">testFocusAlert()</code> in console to test alert immediately
+            </div>
+        </div>
+
+        <div class="setting-item" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2); padding-top: 24px; display: block;">
+            <div class="setting-label" style="margin-bottom: 8px;">Google Maps API Key 🗺️</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="password" id="googleMapsApiKey" placeholder="AIza..."
+                       style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: white; font-size: 13px; font-family: monospace;"
+                       onchange="saveAPIKeys()">
+                <button onclick="testGoogleMapsKey()" title="Test Google Maps API key"
+                        style="padding: 10px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                    Test
+                </button>
+            </div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 6px;">
+                Get key: console.cloud.google.com → APIs & Services → Credentials<br>
+                Enable: Maps JavaScript API, Places API, Geocoding API
             </div>
         </div>
 

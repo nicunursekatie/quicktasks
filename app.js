@@ -3229,22 +3229,145 @@ window.closeNewEventModal = function() {
     document.getElementById('newEventLocationMap').style.display = 'none';
 }
 
-window.openLocationPicker = function(locationInputId) {
+window.openLocationPicker = async function(locationInputId) {
     const mapDiv = document.getElementById('newEventLocationMap');
-    if (mapDiv.style.display === 'none') {
-        mapDiv.style.display = 'block';
-        // Initialize Google Maps here - we'll need Google Maps API key
-        // For now, show a placeholder
-        mapDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Google Maps integration coming soon. Enter address manually for now.</div>';
+    const locationInput = document.getElementById(locationInputId);
+    
+    if (mapDiv.style.display === 'none' || mapDiv.style.display === '') {
+        // Check if API key is configured
+        if (!settings?.googleMapsApiKey) {
+            alert('Google Maps API key not configured. Please add it in Settings first.');
+            return;
+        }
         
-        // TODO: Implement Google Maps autocomplete/picker
-        // This would require:
-        // 1. Google Maps JavaScript API key
-        // 2. Places API for autocomplete
-        // 3. Geocoding for address → coordinates
+        mapDiv.style.display = 'block';
+        mapDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Loading map...</div>';
+        
+        try {
+            // Load Google Maps API if not already loaded
+            await window.loadGoogleMapsAPI();
+            
+            // Initialize map
+            const mapOptions = {
+                center: { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco, will update based on user location or input
+                zoom: 13,
+                mapTypeControl: true,
+                streetViewControl: true,
+                fullscreenControl: true
+            };
+            
+            window.googleMapsMap = new google.maps.Map(mapDiv, mapOptions);
+            window.googleMapsMarker = new google.maps.Marker({
+                map: window.googleMapsMap,
+                draggable: true
+            });
+            
+            // Try to get user's current location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        window.googleMapsMap.setCenter(userLocation);
+                        window.googleMapsMarker.setPosition(userLocation);
+                    },
+                    () => {
+                        // User denied or error getting location, use default
+                        console.log('Could not get user location');
+                    }
+                );
+            }
+            
+            // Create autocomplete for the location input
+            if (locationInput && !window.googleMapsAutocomplete) {
+                window.googleMapsAutocomplete = new google.maps.places.Autocomplete(locationInput, {
+                    fields: ['formatted_address', 'geometry', 'name', 'place_id'],
+                    types: ['establishment', 'geocode']
+                });
+                
+                // When user selects from autocomplete
+                window.googleMapsAutocomplete.addListener('place_changed', () => {
+                    const place = window.googleMapsAutocomplete.getPlace();
+                    if (place.geometry) {
+                        window.googleMapsMap.setCenter(place.geometry.location);
+                        window.googleMapsMap.setZoom(15);
+                        window.googleMapsMarker.setPosition(place.geometry.location);
+                        
+                        // Update input with formatted address
+                        locationInput.value = place.formatted_address || place.name;
+                    }
+                });
+            }
+            
+            // When user types in the input, search and update map
+            if (locationInput) {
+                locationInput.addEventListener('input', debounce(async () => {
+                    const query = locationInput.value.trim();
+                    if (query.length > 3) {
+                        try {
+                            const geocoder = new google.maps.Geocoder();
+                            geocoder.geocode({ address: query }, (results, status) => {
+                                if (status === 'OK' && results[0]) {
+                                    const location = results[0].geometry.location;
+                                    window.googleMapsMap.setCenter(location);
+                                    window.googleMapsMap.setZoom(15);
+                                    window.googleMapsMarker.setPosition(location);
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Geocoding error:', error);
+                        }
+                    }
+                }, 500));
+            }
+            
+            // When marker is dragged, update the input field
+            google.maps.event.addListener(window.googleMapsMarker, 'dragend', async () => {
+                const position = window.googleMapsMarker.getPosition();
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ location: position }, (results, status) => {
+                    if (status === 'OK' && results[0] && locationInput) {
+                        locationInput.value = results[0].formatted_address;
+                    }
+                });
+            });
+            
+            // When map is clicked, move marker and update input
+            google.maps.event.addListener(window.googleMapsMap, 'click', (event) => {
+                window.googleMapsMarker.setPosition(event.latLng);
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ location: event.latLng }, (results, status) => {
+                    if (status === 'OK' && results[0] && locationInput) {
+                        locationInput.value = results[0].formatted_address;
+                    }
+                });
+            });
+            
+        } catch (error) {
+            console.error('Error initializing Google Maps:', error);
+            mapDiv.innerHTML = `<div style="padding: 20px; text-align: center; color: #dc2626;">
+                Error loading Google Maps: ${error.message}<br>
+                Please check your API key in Settings.
+            </div>`;
+        }
     } else {
         mapDiv.style.display = 'none';
     }
+}
+
+// Debounce helper function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 window.submitNewEvent = async function() {
@@ -4964,11 +5087,13 @@ window.saveAPIKeys = function() {
     const geminiInput = document.getElementById('geminiApiKey');
     const groqInput = document.getElementById('groqApiKey');
     const anthropicInput = document.getElementById('anthropicApiKey');
+    const googleMapsInput = document.getElementById('googleMapsApiKey');
 
     if (openaiInput) settings.openaiApiKey = openaiInput.value.trim();
     if (geminiInput) settings.geminiApiKey = geminiInput.value.trim();
     if (groqInput) settings.groqApiKey = groqInput.value.trim();
     if (anthropicInput) settings.anthropicApiKey = anthropicInput.value.trim();
+    if (googleMapsInput) settings.googleMapsApiKey = googleMapsInput.value.trim();
 
     saveData();
     alert('✓ API key saved!');
@@ -4979,6 +5104,7 @@ function loadOpenAIKey() {
     const geminiInput = document.getElementById('geminiApiKey');
     const groqInput = document.getElementById('groqApiKey');
     const anthropicInput = document.getElementById('anthropicApiKey');
+    const googleMapsInput = document.getElementById('googleMapsApiKey');
     const providerSelect = document.getElementById('aiProvider');
     const focusIntervalSelect = document.getElementById('focusAlertInterval');
     
@@ -4999,8 +5125,36 @@ function loadOpenAIKey() {
     if (anthropicInput && settings.anthropicApiKey) {
         anthropicInput.value = settings.anthropicApiKey;
     }
+    if (googleMapsInput && settings.googleMapsApiKey) {
+        googleMapsInput.value = settings.googleMapsApiKey;
+    }
     if (providerSelect) {
         providerSelect.value = settings.aiProvider || 'gemini';
+    }
+}
+
+// Test Google Maps API Key
+window.testGoogleMapsKey = async function() {
+    const input = document.getElementById('googleMapsApiKey');
+    const apiKey = input.value.trim();
+    
+    if (!apiKey) {
+        alert('Please enter a Google Maps API key');
+        return;
+    }
+    
+    // Temporarily save to test
+    const originalKey = settings.googleMapsApiKey;
+    settings.googleMapsApiKey = apiKey;
+    
+    try {
+        // Try to load the Maps API with this key
+        await window.loadGoogleMapsAPI();
+        alert('✅ Google Maps API key is valid!');
+        saveAPIKeys(); // Save it permanently
+    } catch (error) {
+        alert(`❌ Error: ${error.message}\n\nMake sure:\n1. The API key is correct\n2. Maps JavaScript API is enabled\n3. Places API is enabled\n4. Geocoding API is enabled`);
+        settings.googleMapsApiKey = originalKey; // Restore original
     }
 }
 
