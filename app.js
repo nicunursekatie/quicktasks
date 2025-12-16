@@ -540,6 +540,79 @@ function getAllTasksWithMetadata() {
     return allTasks;
 }
 
+// Get events for a specific date range (helper function)
+function getEventsForDate(dateStr) {
+    // Access global googleCalendarEvents if available
+    if (typeof getFilteredGoogleEvents === 'function') {
+        const filteredEvents = getFilteredGoogleEvents();
+        return filteredEvents.filter(event => event.date === dateStr);
+    }
+    // Fallback: try to access googleCalendarEvents directly
+    if (typeof googleCalendarEvents !== 'undefined' && Array.isArray(googleCalendarEvents)) {
+        return googleCalendarEvents.filter(event => event.date === dateStr);
+    }
+    return [];
+}
+
+// Get events for today
+function getEventsForToday() {
+    const today = getTodayDate();
+    return getEventsForDate(today);
+}
+
+// Get events for tomorrow
+function getEventsForTomorrow() {
+    const tomorrow = getDateDaysFromToday(1);
+    return getEventsForDate(tomorrow);
+}
+
+// Get events for this week (2-7 days from today)
+function getEventsForWeek() {
+    const today = getTodayDate();
+    const tomorrow = getDateDaysFromToday(1);
+    const weekEnd = getDateDaysFromToday(7);
+    
+    if (typeof getFilteredGoogleEvents === 'function') {
+        const filteredEvents = getFilteredGoogleEvents();
+        return filteredEvents.filter(event => {
+            if (!event.date) return false;
+            // Skip today and tomorrow (they're in separate zones)
+            if (event.date === today || event.date === tomorrow) return false;
+            // Include events within 7 days
+            return isDateWithinDays(event.date, 7);
+        });
+    }
+    if (typeof googleCalendarEvents !== 'undefined' && Array.isArray(googleCalendarEvents)) {
+        return googleCalendarEvents.filter(event => {
+            if (!event.date) return false;
+            if (event.date === today || event.date === tomorrow) return false;
+            return isDateWithinDays(event.date, 7);
+        });
+    }
+    return [];
+}
+
+// Render a calendar event item
+function renderEvent(event, zoneType = null) {
+    const timeStr = event.startTime === 'All day' 
+        ? 'All day' 
+        : `${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}`;
+    const color = event.calendarColor || '#4285F4';
+    
+    return `
+        <div class="task-item event-item zone-${zoneType || 'event'}" style="border-left: 3px solid ${color}; background: linear-gradient(90deg, ${color}15 0%, var(--bg-page) 5%);">
+            <span style="user-select: none; color: ${color}; font-size: 16px; margin-right: 8px;">📅</span>
+            <div class="task-content" style="flex: 1;">
+                <div class="task-title" style="display: flex; align-items: center; gap: 8px;">
+                    <span>${escapeHtml(event.title)}</span>
+                    <span style="font-size: 11px; color: var(--text-muted); font-weight: 400;">${timeStr}</span>
+                    ${event.location ? `<span style="font-size: 11px; color: var(--text-muted);">📍 ${escapeHtml(event.location)}</span>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // Get tasks for Must Get Done / Someone Else Relying On Me zone
 function getTasksForCriticalZone() {
     const allTasks = getAllTasksWithMetadata();
@@ -768,7 +841,7 @@ function migrateTasksToZones() {
     }
 }
 
-// Render tasks for a specific zone
+// Render tasks for a specific zone, grouped by project
 function renderZone(zoneType, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -776,6 +849,12 @@ function renderZone(zoneType, containerId) {
     let tasks = [];
     if (zoneType === 'critical') {
         tasks = getTasksForCriticalZone();
+    } else if (zoneType === 'today') {
+        tasks = getTasksForTodayZone();
+    } else if (zoneType === 'tomorrow') {
+        tasks = getTasksForTomorrowZone();
+    } else if (zoneType === 'week') {
+        tasks = getTasksForWeekZone();
     } else if (zoneType === 'focus') {
         tasks = getTasksForFocusZone();
     } else if (zoneType === 'inbox') {
@@ -784,14 +863,140 @@ function renderZone(zoneType, containerId) {
         tasks = getTasksForNiceZone();
     }
     
-    if (tasks.length === 0) {
-        container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;">No tasks in this zone</div>`;
+    // Get events for this zone
+    let events = [];
+    if (zoneType === 'today') {
+        events = getEventsForToday();
+    } else if (zoneType === 'tomorrow') {
+        events = getEventsForTomorrow();
+    } else if (zoneType === 'week') {
+        events = getEventsForWeek();
+    }
+    
+    // Build HTML: events first, then tasks grouped by project
+    let html = '';
+    
+    // Render events section if there are any
+    if (events.length > 0) {
+        html += `
+            <div class="zone-events-section" style="margin-bottom: 20px; padding: 12px; background: rgba(66, 133, 244, 0.05); border-radius: 8px; border-left: 3px solid #4285F4;">
+                <div class="zone-events-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary);">
+                        📅 Calendar Events (${events.length})
+                    </h3>
+                </div>
+                <div class="zone-events-list">
+                    ${events.map(event => renderEvent(event, zoneType)).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    if (tasks.length === 0 && events.length === 0) {
+        container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;">No tasks or events in this zone</div>`;
         return;
     }
     
-    container.innerHTML = tasks.map(task => {
-        return renderTask(task.section, task.groupIndex, task.taskIndex, task, zoneType);
+    if (tasks.length === 0) {
+        container.innerHTML = html;
+        return;
+    }
+    
+    // Get events for this zone (only for date-based zones)
+    let events = [];
+    if (zoneType === 'today') {
+        events = getEventsForToday();
+    } else if (zoneType === 'tomorrow') {
+        events = getEventsForTomorrow();
+    } else if (zoneType === 'week') {
+        events = getEventsForWeek();
+    }
+    
+    // Build HTML: events first, then tasks grouped by project
+    let html = '';
+    
+    // Render events section if there are any
+    if (events.length > 0) {
+        html += `
+            <div class="zone-events-section" style="margin-bottom: 20px; padding: 12px; background: rgba(66, 133, 244, 0.05); border-radius: 8px; border-left: 3px solid #4285F4;">
+                <div class="zone-events-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary);">
+                        📅 Calendar Events (${events.length})
+                    </h3>
+                </div>
+                <div class="zone-events-list">
+                    ${events.map(event => renderEvent(event, zoneType)).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    if (tasks.length === 0 && events.length === 0) {
+        container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;">No tasks or events in this zone</div>`;
+        return;
+    }
+    
+    if (tasks.length === 0) {
+        container.innerHTML = html;
+        return;
+    }
+    
+    // Group tasks by project
+    const tasksByProject = new Map();
+    tasks.forEach(task => {
+        const projectKey = `${task.section}-${task.groupIndex}`;
+        if (!tasksByProject.has(projectKey)) {
+            tasksByProject.set(projectKey, {
+                section: task.section,
+                groupIndex: task.groupIndex,
+                groupName: task.groupName,
+                tasks: []
+            });
+        }
+        tasksByProject.get(projectKey).tasks.push(task);
+    });
+    
+    // Render projects with their tasks
+    html += Array.from(tasksByProject.values()).map(project => {
+        const totalTasks = taskData[project.section][project.groupIndex].tasks.length;
+        const completedTasks = taskData[project.section][project.groupIndex].tasks.filter(t => t.completed).length;
+        const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+        
+        // Check if project has urgent/blocking tasks
+        const hasUrgentTasks = project.tasks.some(t => t.isUrgent || t.isBlocking);
+        const hasBlockingTasks = project.tasks.some(t => t.isBlocking);
+        
+        return `
+            <div class="zone-project-group" style="margin-bottom: 20px; padding: 12px; background: rgba(255, 255, 255, 0.02); border-radius: 8px; border-left: 3px solid var(--border-light);">
+                <div class="zone-project-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                        <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); cursor: pointer;" onclick="editGroupName('${project.section}', ${project.groupIndex})" title="Click to edit project name">
+                            ${escapeHtml(project.groupName)}
+                            ${hasUrgentTasks ? '<span title="Project has urgent tasks">🚨</span>' : ''}
+                            ${hasBlockingTasks && !hasUrgentTasks ? '<span title="Project has blocking tasks">👤</span>' : ''}
+                        </h3>
+                        <span style="font-size: 11px; color: var(--text-muted);">
+                            (${project.tasks.length} in this zone${totalTasks !== project.tasks.length ? ` / ${totalTasks} total` : ''})
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="group-edit-btn" onclick="event.stopPropagation(); editGroupName('${project.section}', ${project.groupIndex})" title="Edit project name" style="font-size: 12px; padding: 4px 8px;">✏️</button>
+                        <button class="group-add-task-btn" onclick="event.stopPropagation(); addTaskToGroup('${project.section}', ${project.groupIndex})" title="Add task to project" style="font-size: 12px; padding: 4px 8px;">➕</button>
+                    </div>
+                </div>
+                <div class="zone-project-progress" style="height: 3px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; margin-bottom: 8px; overflow: hidden;">
+                    <div style="height: 100%; background: var(--accent-primary); width: ${progress}%; transition: width 0.3s ease;"></div>
+                </div>
+                <div class="zone-project-tasks">
+                    ${project.tasks.map(task => {
+                        return renderTask(task.section, task.groupIndex, task.taskIndex, task, zoneType);
+                    }).join('')}
+                </div>
+            </div>
+        `;
     }).join('');
+    
+    container.innerHTML = html;
 }
 
 // Render all tasks
