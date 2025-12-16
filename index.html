@@ -2133,6 +2133,11 @@
             background: linear-gradient(90deg, rgba(168, 162, 158, 0.05) 0%, var(--bg-card) 5%);
         }
 
+        .zone.nice {
+            border-left-color: #a855f7;
+            background: linear-gradient(90deg, rgba(168, 85, 247, 0.05) 0%, var(--bg-card) 5%);
+        }
+
         .zone-header {
             display: flex;
             align-items: center;
@@ -2180,6 +2185,10 @@
 
         .zone.inbox .zone-title {
             color: var(--text-secondary);
+        }
+
+        .zone.nice .zone-title {
+            color: #a855f7;
         }
 
         .section {
@@ -2477,6 +2486,11 @@
 
         .task-item.zone-inbox {
             border-left-color: var(--text-muted);
+        }
+
+        .task-item.zone-nice {
+            border-left-color: #a855f7;
+            background: linear-gradient(90deg, rgba(168, 85, 247, 0.05) 0%, var(--bg-page) 5%);
         }
 
         .task-zone-indicator {
@@ -3963,6 +3977,16 @@
             </div>
         </div>
 
+        <!-- ZONE D: Would Be Nice -->
+        <div class="zone nice" id="niceZone">
+            <div class="zone-header">
+                <h2 class="zone-title">✨ Would Be Nice</h2>
+            </div>
+            <div id="niceTasks" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
         <!-- TODAY SECTION (kept for backwards compatibility, hidden by default) -->
         <div class="section" id="todaySection" style="display: none;">
             <div class="section-header">
@@ -4477,6 +4501,7 @@
                         <option value="critical">🚨 Critical / External Blockers</option>
                         <option value="focus">🎯 Today's Focus</option>
                         <option value="inbox">📥 The Inbox</option>
+                        <option value="nice">✨ Would Be Nice</option>
                     </select>
                 </div>
                 <div style="margin-bottom: 16px;">

@@ -599,8 +599,13 @@ function getTasksForInboxZone() {
             const hasExternalDeadline = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
             const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow) && task.isBlocking;
             
-            // Only show in inbox if not critical
+            // Only show in inbox if not critical and not nice
             if (isBlocking || hasExternalDeadline || hasUrgentDueDate) {
+                return false;
+            }
+            
+            // Don't show in inbox if it's in nice zone
+            if (task.zone === 'nice') {
                 return false;
             }
             
@@ -611,10 +616,22 @@ function getTasksForInboxZone() {
     });
 }
 
+// Get tasks for Nice zone
+function getTasksForNiceZone() {
+    const allTasks = getAllTasksWithMetadata();
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        
+        // Explicitly in nice zone
+        return task.zone === 'nice';
+    });
+}
+
 // Auto-update task zone property based on other properties
 function updateTaskZoneProperties(task) {
     // Don't override explicit zone assignment
-    if (task.zone === 'inbox' || task.zone === 'critical' || task.zone === 'focus') {
+    if (task.zone === 'inbox' || task.zone === 'critical' || task.zone === 'focus' || task.zone === 'nice') {
         // Zone already set explicitly, but we can still validate
         return;
     }
@@ -674,6 +691,8 @@ function renderZone(zoneType, containerId) {
         tasks = getTasksForFocusZone();
     } else if (zoneType === 'inbox') {
         tasks = getTasksForInboxZone();
+    } else if (zoneType === 'nice') {
+        tasks = getTasksForNiceZone();
     }
     
     if (tasks.length === 0) {
@@ -692,6 +711,7 @@ function renderTasks() {
     renderZone('critical', 'criticalTasks');
     renderZone('focus', 'focusTasks');
     renderZone('inbox', 'inboxTasks');
+    renderZone('nice', 'niceTasks');
     
     // Also render sections for backwards compatibility (can be hidden with CSS later)
     renderSection('today', 'todayTasks');
@@ -882,8 +902,9 @@ function attachDragAndDropListeners() {
     const criticalTasks = document.getElementById('criticalTasks');
     const focusTasks = document.getElementById('focusTasks');
     const inboxTasks = document.getElementById('inboxTasks');
+    const niceTasks = document.getElementById('niceTasks');
     
-    [criticalTasks, focusTasks, inboxTasks].forEach(container => {
+    [criticalTasks, focusTasks, inboxTasks, niceTasks].forEach(container => {
         if (container && !container.hasAttribute('data-drag-listeners')) {
             container.setAttribute('data-drag-listeners', 'true');
             container.addEventListener('dragover', handleDragOver);
@@ -1265,6 +1286,8 @@ function handleZoneDrop(e) {
         return false;
     } else if (dropTarget.id === 'inboxTasks') {
         targetZone = 'inbox';
+    } else if (dropTarget.id === 'niceTasks') {
+        targetZone = 'nice';
     } else {
         return false;
     }
@@ -1434,6 +1457,7 @@ function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
                         title="${task.isInFocus ? 'Remove from Today\'s Focus' : 'Add to Today\'s Focus'}">🎯</button>
                 <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'critical')" title="Move to Critical zone">🚨</button>
                 <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'inbox')" title="Move to Inbox">📥</button>
+                <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'nice')" title="Move to Would Be Nice">✨</button>
                 <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
                 <button class="convert-btn" onclick="convertToProject('${section}', ${groupIndex}, ${taskIndex})" title="Convert to project">📁</button>
@@ -2394,6 +2418,7 @@ function loadRefineTask() {
                 onclick="refineToggleQuick('isInFocus')" title="Add to Today's Focus">🎯 Add to Focus</button>
         <button class="refine-quick-btn" onclick="refineQuickMove('critical')" title="Move to Critical zone">🚨 Move to Critical</button>
         <button class="refine-quick-btn" onclick="refineQuickMove('inbox')" title="Keep in Inbox">📥 Keep in Inbox</button>
+        <button class="refine-quick-btn" onclick="refineQuickMove('nice')" title="Move to Would Be Nice">✨ Would Be Nice</button>
     `;
     
     // Update counter and navigation
