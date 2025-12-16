@@ -1744,6 +1744,7 @@ function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
                 <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
                 <button class="convert-btn" onclick="convertToProject('${section}', ${groupIndex}, ${taskIndex})" title="Convert to project">📁</button>
+                <button class="convert-btn" onclick="convertToEvent('${section}', ${groupIndex}, ${taskIndex})" title="Convert to calendar event">📅</button>
                 <button class="move-btn" onclick="moveTask('${section}', ${groupIndex}, ${taskIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
                 <button class="delete-btn" onclick="deleteTask('${section}', ${groupIndex}, ${taskIndex})" title="Delete task">🗑️</button>
             </div>
@@ -3117,6 +3118,148 @@ window.convertToProject = async function(section, groupIndex, taskIndex) {
         // Find the new project's index
         const newProjectIndex = taskData[targetSection].length - 1;
         aiBreakdownProject(targetSection, newProjectIndex);
+    }
+}
+
+// Convert a task to a Google Calendar event
+window.convertToEvent = async function(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    const taskTitle = task.title;
+    
+    // Check if Google Calendar is connected
+    if (typeof isGoogleCalendarConnected === 'undefined' || !isGoogleCalendarConnected) {
+        const connect = await showConfirmModal(
+            '📅 Google Calendar Required',
+            'To convert tasks to calendar events, you need to connect your Google Calendar.\n\nWould you like to connect now?'
+        );
+        
+        if (connect && typeof connectGoogleCalendar === 'function') {
+            connectGoogleCalendar();
+        }
+        return;
+    }
+    
+    // Ask for event details
+    const eventTitle = await showCustomModal(
+        '📅 Convert to Calendar Event',
+        `Create a calendar event from this task?\n\nTask: "${taskTitle}"\n\nEnter event title:`,
+        taskTitle
+    );
+    
+    if (!eventTitle || !eventTitle.trim()) return;
+    
+    // Ask for date
+    const eventDate = await showCustomModal(
+        '📅 Event Date',
+        `When should this event occur?\n\nEnter date (today, tomorrow, YYYY-MM-DD, or leave blank for task due date):`,
+        task.dueDate || task.externalDeadline || ''
+    );
+    
+    let dateStr = '';
+    if (eventDate && eventDate.trim()) {
+        // Try to parse natural language date
+        const parsed = parseNaturalDate(eventDate.trim());
+        dateStr = parsed || eventDate.trim();
+    } else if (task.dueDate || task.externalDeadline) {
+        dateStr = task.dueDate || task.externalDeadline;
+    } else {
+        // Default to today
+        dateStr = getTodayDate();
+    }
+    
+    // Ask for time (optional)
+    const eventTime = await showCustomModal(
+        '📅 Event Time',
+        `What time should this event occur?\n\nEnter time (e.g., "2:00 PM", "14:00", or leave blank for all-day event):`,
+        ''
+    );
+    
+    // Build event object for Google Calendar
+    const event = {
+        summary: eventTitle.trim(),
+        description: task.notes || task.description || '',
+        location: task.location || ''
+    };
+    
+    // Set start and end times
+    if (eventTime && eventTime.trim()) {
+        // Parse time (assume same day if no date in time string)
+        const timeStr = eventTime.trim();
+        let hour, minute;
+        
+        // Try parsing "2:00 PM" or "14:00" format
+        if (timeStr.match(/^\d{1,2}:\d{2}\s*(AM|PM)$/i)) {
+            // 12-hour format
+            const parts = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            hour = parseInt(parts[1]);
+            minute = parseInt(parts[2]);
+            const isPM = parts[3].toUpperCase() === 'PM';
+            if (isPM && hour !== 12) hour += 12;
+            if (!isPM && hour === 12) hour = 0;
+        } else if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
+            // 24-hour format
+            const parts = timeStr.split(':');
+            hour = parseInt(parts[0]);
+            minute = parseInt(parts[1]);
+        } else {
+            alert('Could not parse time format. Creating all-day event.');
+            event.start = { date: dateStr };
+            event.end = { date: dateStr };
+        }
+        
+        if (hour !== undefined && minute !== undefined) {
+            const startDateTime = new Date(dateStr);
+            startDateTime.setHours(hour, minute, 0, 0);
+            const endDateTime = new Date(startDateTime);
+            endDateTime.setHours(startDateTime.getHours() + 1); // Default 1 hour duration
+            
+            event.start = { dateTime: startDateTime.toISOString() };
+            event.end = { dateTime: endDateTime.toISOString() };
+        }
+    } else {
+        // All-day event
+        event.start = { date: dateStr };
+        event.end = { date: dateStr };
+    }
+    
+    try {
+        // Check if gapi is available
+        if (typeof gapi === 'undefined' || !gapi.client || !gapi.client.calendar) {
+            alert('Google Calendar API not loaded. Please refresh the page and try again.');
+            return;
+        }
+        
+        // Insert event into Google Calendar
+        const response = await gapi.client.calendar.events.insert({
+            calendarId: 'primary',
+            resource: event
+        });
+        
+        alert(`✅ Event "${eventTitle.trim()}" created in Google Calendar!`);
+        
+        // Refresh calendar events to show the new event
+        if (typeof fetchGoogleCalendarEvents === 'function') {
+            await fetchGoogleCalendarEvents();
+            renderTasks(); // Re-render to show the new event in zones
+        }
+        
+        // Optionally delete the task after converting
+        const deleteTask = await showConfirmModal(
+            '✅ Event Created',
+            'Would you like to delete the original task now that it\'s a calendar event?'
+        );
+        
+        if (deleteTask) {
+            taskData[section][groupIndex].tasks.splice(taskIndex, 1);
+            saveData();
+            renderTasks();
+            updateStats();
+            updateProgress();
+        }
+        
+    } catch (error) {
+        console.error('Error creating calendar event:', error);
+        alert(`❌ Error creating calendar event: ${error.message}\n\nPlease check that Google Calendar is connected and try again.`);
     }
 }
 
