@@ -4652,6 +4652,108 @@
         </div>
     </div>
 
+    <!-- Edit Event Modal -->
+    <div id="editEventModal" class="custom-modal">
+        <div class="custom-modal-content" style="max-width: 600px;">
+            <div class="custom-modal-header">
+                <h3>✏️ Edit Event</h3>
+                <button class="modal-close-btn" onclick="closeEditEventModal()" title="Close edit event modal">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Event Title *</label>
+                    <input type="text" id="editEventTitle"
+                           placeholder="Meeting name, appointment, etc."
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Date *</label>
+                        <input type="text" id="editEventDate" placeholder="today, tomorrow, 2024-12-25..."
+                               style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Start Time *</label>
+                        <input type="text" id="editEventStartTime" placeholder="2:00 PM or 14:00"
+                               style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Duration</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="number" id="editEventDuration" min="15" step="15" value="60" placeholder="60"
+                               style="width: 100px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <span style="color: #666; font-size: 14px;">minutes (or enter end time below)</span>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333; font-size: 13px;">End Time (optional - overrides duration)</label>
+                        <input type="text" id="editEventEndTime" placeholder="3:00 PM or 15:00"
+                               style="width: 200px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Location</label>
+                    <input type="text" id="editEventLocation" placeholder="Address or place name"
+                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                    <button type="button" id="editEventLocationMapBtn" onclick="openLocationPicker('editEventLocation')" 
+                            style="margin-top: 8px; padding: 8px 12px; background: #3B82F6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                        🗺️ Pick on Map
+                    </button>
+                    <div id="editEventLocationMap" style="display: none; margin-top: 12px; height: 300px; border: 2px solid #e0e0e0; border-radius: 8px;"></div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Travel Time</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="number" id="editEventTravelTime" min="0" step="5" placeholder="0"
+                               style="width: 100px; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <span style="color: #666; font-size: 14px;">minutes before event (for leaving reminders)</span>
+                    </div>
+                    <div style="font-size: 11px; color: #666; margin-top: 4px;">
+                        Leave buffer time to get to the event location
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Description</label>
+                    <textarea id="editEventDescription"
+                              placeholder="Notes, agenda, preparation needed..."
+                              style="width: 100%; min-height: 80px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white; resize: vertical;"></textarea>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Reminders</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="editEventReminder15" style="width: auto;">
+                            <span>15 minutes before</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="editEventReminderTravel" style="width: auto;">
+                            <span>Travel time reminder (based on travel time above)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="editEventReminder1hr" style="width: auto;">
+                            <span>1 hour before</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="editEventReminder1day" style="width: auto;">
+                            <span>1 day before</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="editEventAllDay" style="width: auto;">
+                        <span style="font-weight: 600; color: #333;">All-day event</span>
+                    </label>
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeEditEventModal()">Cancel</button>
+                <button class="modal-btn modal-btn-danger" onclick="deleteEvent()" style="background: #EF4444;">Delete Event</button>
+                <button class="modal-btn modal-btn-submit" onclick="submitEditEvent()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Task Edit Modal -->
     <div id="taskEditModal" class="custom-modal">
         <div class="custom-modal-content" style="max-width: 600px;">

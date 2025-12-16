@@ -609,6 +609,9 @@ function renderEvent(event, zoneType = null) {
                     ${event.location ? `<span style="font-size: 11px; color: var(--text-muted);">📍 ${escapeHtml(event.location)}</span>` : ''}
                 </div>
             </div>
+            <div class="task-actions" style="opacity: 0; transition: opacity 0.2s;">
+                <button class="edit-btn" onclick="editEvent('${event.id}', '${event.calendarId || 'primary'}')" title="Edit event">✏️</button>
+            </div>
         </div>
     `;
 }
@@ -3230,8 +3233,19 @@ window.closeNewEventModal = function() {
 }
 
 window.openLocationPicker = async function(locationInputId) {
-    const mapDiv = document.getElementById('newEventLocationMap');
+    // Determine which map div to use based on input ID
+    let mapDiv;
+    if (locationInputId === 'editEventLocation') {
+        mapDiv = document.getElementById('editEventLocationMap');
+    } else {
+        mapDiv = document.getElementById('newEventLocationMap');
+    }
     const locationInput = document.getElementById(locationInputId);
+    
+    if (!mapDiv || !locationInput) {
+        console.error('Map div or location input not found');
+        return;
+    }
     
     if (mapDiv.style.display === 'none' || mapDiv.style.display === '') {
         // Check if API key is configured
@@ -3280,20 +3294,30 @@ window.openLocationPicker = async function(locationInputId) {
                 );
             }
             
-            // Create autocomplete for the location input
-            if (locationInput && !window.googleMapsAutocomplete) {
-                window.googleMapsAutocomplete = new google.maps.places.Autocomplete(locationInput, {
+            // Create autocomplete for the location input (create new instance for each input)
+            if (locationInput) {
+                // Remove existing autocomplete if it exists for this input
+                if (locationInput._autocomplete) {
+                    google.maps.event.clearInstanceListeners(locationInput._autocomplete);
+                }
+                
+                const autocomplete = new google.maps.places.Autocomplete(locationInput, {
                     fields: ['formatted_address', 'geometry', 'name', 'place_id'],
                     types: ['establishment', 'geocode']
                 });
                 
+                // Store reference on the input element
+                locationInput._autocomplete = autocomplete;
+                
                 // When user selects from autocomplete
-                window.googleMapsAutocomplete.addListener('place_changed', () => {
-                    const place = window.googleMapsAutocomplete.getPlace();
-                    if (place.geometry) {
+                autocomplete.addListener('place_changed', () => {
+                    const place = autocomplete.getPlace();
+                    if (place.geometry && window.googleMapsMap) {
                         window.googleMapsMap.setCenter(place.geometry.location);
                         window.googleMapsMap.setZoom(15);
-                        window.googleMapsMarker.setPosition(place.geometry.location);
+                        if (window.googleMapsMarker) {
+                            window.googleMapsMarker.setPosition(place.geometry.location);
+                        }
                         
                         // Update input with formatted address
                         locationInput.value = place.formatted_address || place.name;
