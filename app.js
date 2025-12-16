@@ -552,16 +552,19 @@ function getTasksForCriticalZone() {
         // Check if explicitly in critical zone
         if (task.zone === 'critical') return true;
         
-        // Check if blocking others
-        if (task.isBlocking === true) return true;
+        // Critical zone requires: blocking AND (urgent OR external deadline soon)
+        const isBlocking = task.isBlocking === true;
+        const isUrgent = task.isUrgent === true;
+        const hasExternalDeadlineSoon = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
+        const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow);
         
-        // Check if has external deadline within 3 days
-        if (task.externalDeadline && isDateWithinDays(task.externalDeadline, 3)) {
+        // Must be blocking AND (urgent OR external deadline soon OR urgent due date)
+        if (isBlocking && (isUrgent || hasExternalDeadlineSoon || hasUrgentDueDate)) {
             return true;
         }
         
-        // Check if due date is today/tomorrow AND has blocking indicator
-        if (task.dueDate && (task.dueDate === today || task.dueDate === tomorrow) && task.isBlocking === true) {
+        // Also include tasks with external deadline soon (even if not explicitly blocking)
+        if (hasExternalDeadlineSoon) {
             return true;
         }
         
@@ -596,11 +599,13 @@ function getTasksForInboxZone() {
         if (!task.zone && !task.isInFocus) {
             // Check if it would be in critical zone
             const isBlocking = task.isBlocking === true;
+            const isUrgent = task.isUrgent === true;
             const hasExternalDeadline = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
-            const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow) && task.isBlocking;
+            const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow);
             
             // Only show in inbox if not critical and not nice
-            if (isBlocking || hasExternalDeadline || hasUrgentDueDate) {
+            // Critical = blocking AND (urgent OR external deadline soon OR urgent due date)
+            if ((isBlocking && (isUrgent || hasExternalDeadline || hasUrgentDueDate)) || hasExternalDeadline) {
                 return false;
             }
             
@@ -640,9 +645,16 @@ function updateTaskZoneProperties(task) {
     const today = getTodayDate();
     const tomorrow = getDateDaysFromToday(1);
     
-    if (task.isBlocking || 
-        (task.externalDeadline && isDateWithinDays(task.externalDeadline, 3)) ||
-        (task.dueDate && (task.dueDate === today || task.dueDate === tomorrow) && task.isBlocking)) {
+    // Critical zone: blocking AND (urgent OR external deadline soon OR urgent due date)
+    const isBlocking = task.isBlocking === true;
+    const isUrgent = task.isUrgent === true;
+    const hasExternalDeadlineSoon = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
+    const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow);
+    
+    if (isBlocking && (isUrgent || hasExternalDeadlineSoon || hasUrgentDueDate)) {
+        task.zone = 'critical';
+    } else if (hasExternalDeadlineSoon) {
+        // External deadline soon also goes to critical
         task.zone = 'critical';
     } else if (task.isInFocus) {
         task.zone = 'focus';
@@ -1376,7 +1388,13 @@ function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
     // Build zone indicators
     let zoneIndicators = '';
     if (task.isBlocking) {
-        zoneIndicators += '<span class="task-blocking-icon" title="Blocking others / Someone is relying on me">👤</span>';
+        const blockingTitle = task.isUrgent 
+            ? 'Blocking others / Someone is relying on me - URGENT' 
+            : 'Blocking others / Someone is relying on me (not urgent)';
+        zoneIndicators += `<span class="task-blocking-icon" title="${blockingTitle}">👤</span>`;
+        if (task.isUrgent) {
+            zoneIndicators += '<span class="task-urgent-indicator" title="URGENT - Must get done ASAP">🚨</span>';
+        }
     }
     if (task.externalDeadline) {
         zoneIndicators += `<span class="task-external-deadline" title="External deadline: ${task.externalDeadline}">${task.externalDeadline}</span>`;
@@ -1717,7 +1735,8 @@ window.submitTaskFollowUp = function() {
             title: followUpTitle,
             completed: false,
             status: 'not-started',
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            zone: 'inbox'
         };
 
         // Parse due date if provided
@@ -1728,8 +1747,42 @@ window.submitTaskFollowUp = function() {
             }
         }
 
-        // Add to the same project/group as the original task
-        taskData[followUpSection][groupIndex].tasks.push(newTask);
+        // Find the appropriate group to add the task to
+        let targetGroupIndex = groupIndex;
+        
+        // If switching sections, try to find the same group name in the new section
+        if (followUpSection !== section) {
+            const originalGroupName = taskData[section][groupIndex].groupName;
+            const matchingGroupIndex = taskData[followUpSection].findIndex(g => g.groupName === originalGroupName);
+            
+            if (matchingGroupIndex !== -1) {
+                targetGroupIndex = matchingGroupIndex;
+            } else {
+                // If group doesn't exist in new section, use "Quick Tasks" or first group
+                let quickGroup = taskData[followUpSection].find(g => g.groupName === 'Quick Tasks');
+                if (!quickGroup) {
+                    quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+                    taskData[followUpSection].unshift(quickGroup);
+                }
+                targetGroupIndex = taskData[followUpSection].indexOf(quickGroup);
+            }
+        }
+        
+        // Validate the group index exists
+        if (!taskData[followUpSection] || !taskData[followUpSection][targetGroupIndex]) {
+            console.error('Invalid group index for follow-up task');
+            // Fallback to first group
+            if (taskData[followUpSection] && taskData[followUpSection].length > 0) {
+                targetGroupIndex = 0;
+            } else {
+                // Create a default group if section is empty
+                taskData[followUpSection].push({ groupName: 'Quick Tasks', tasks: [] });
+                targetGroupIndex = 0;
+            }
+        }
+
+        // Add to the appropriate project/group
+        taskData[followUpSection][targetGroupIndex].tasks.push(newTask);
         saveData();
         renderTasks();
         updateStats();
@@ -1906,6 +1959,7 @@ window.editTask = function(section, groupIndex, taskIndex) {
     document.getElementById('taskEditTags').value = task.tags ? task.tags.join(', ') : '';
     document.getElementById('taskEditNotes').value = task.notes || '';
     document.getElementById('taskEditIsBlocking').checked = task.isBlocking === true;
+    document.getElementById('taskEditIsUrgent').checked = task.isUrgent === true;
     document.getElementById('taskEditExternalDeadline').value = task.externalDeadline || '';
     document.getElementById('taskEditIsInFocus').checked = task.isInFocus === true;
     document.getElementById('taskEditZone').value = task.zone || '';
@@ -2090,6 +2144,16 @@ window.submitTaskEdit = function() {
         task.isBlocking = true;
     } else {
         delete task.isBlocking;
+        // If not blocking, also remove urgent flag
+        delete task.isUrgent;
+    }
+    
+    // Update isUrgent (only relevant if blocking)
+    const isUrgent = document.getElementById('taskEditIsUrgent').checked;
+    if (isBlocking && isUrgent) {
+        task.isUrgent = true;
+    } else {
+        delete task.isUrgent;
     }
 
     // Update externalDeadline
@@ -2414,6 +2478,8 @@ function loadRefineTask() {
     quickActions.innerHTML = `
         <button class="refine-quick-btn ${(changes.isBlocking || task.isBlocking) ? 'active' : ''}" 
                 onclick="refineToggleQuick('isBlocking')" title="Mark as blocking others">👤 Blocking Others</button>
+        <button class="refine-quick-btn ${(changes.isUrgent || task.isUrgent) ? 'active' : ''}" 
+                onclick="refineToggleQuick('isUrgent')" title="URGENT - Must get done ASAP (only if blocking)">🚨 Urgent</button>
         <button class="refine-quick-btn ${(changes.isInFocus || task.isInFocus) ? 'active' : ''}" 
                 onclick="refineToggleQuick('isInFocus')" title="Add to Today's Focus">🎯 Add to Focus</button>
         <button class="refine-quick-btn" onclick="refineQuickMove('critical')" title="Move to Must Get Done / Someone Else Relying On Me">🚨 Must Get Done / Someone Relying On Me</button>
@@ -2460,6 +2526,7 @@ window.refineApplyToCurrent = function() {
     // Apply quick toggles if set
     const quickActions = document.getElementById('refineQuickActions');
     const blockingBtn = quickActions.querySelector('[onclick*="isBlocking"]');
+    const urgentBtn = quickActions.querySelector('[onclick*="isUrgent"]');
     const focusBtn = quickActions.querySelector('[onclick*="isInFocus"]');
     
     const existingChanges = refineChanges.get(taskKey) || {};
@@ -2469,6 +2536,13 @@ window.refineApplyToCurrent = function() {
     } else if (existingChanges.isBlocking === undefined) {
         // Only clear if not explicitly set
         changes.isBlocking = false;
+    }
+    
+    // Urgent only applies if blocking
+    if (urgentBtn && urgentBtn.classList.contains('active') && (blockingBtn && blockingBtn.classList.contains('active'))) {
+        changes.isUrgent = true;
+    } else if (existingChanges.isUrgent === undefined) {
+        changes.isUrgent = false;
     }
     
     if (focusBtn && focusBtn.classList.contains('active')) {
@@ -2631,6 +2705,16 @@ window.refineSaveAll = function() {
                 task.isBlocking = true;
             } else {
                 delete task.isBlocking;
+                // If not blocking, also remove urgent flag
+                delete task.isUrgent;
+            }
+        }
+        
+        if (changes.isUrgent !== undefined) {
+            if (changes.isUrgent && task.isBlocking) {
+                task.isUrgent = true;
+            } else {
+                delete task.isUrgent;
             }
         }
         
