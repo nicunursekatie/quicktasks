@@ -804,6 +804,97 @@
             text-transform: uppercase;
         }
 
+        /* Brain Dump Input */
+        .brain-dump-container {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+            border-bottom: 2px solid var(--accent-primary);
+        }
+
+        .brain-dump-input {
+            width: 100%;
+            min-height: 60px;
+            padding: 16px 20px;
+            border: 3px solid var(--accent-primary);
+            border-radius: 12px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 18px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-md);
+        }
+
+        .brain-dump-input::placeholder {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .brain-dump-input:focus {
+            outline: none;
+            border-color: var(--accent-primary-hover);
+            box-shadow: 0 0 0 4px var(--accent-light), var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        /* Zone Styles */
+        .zone {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .zone.critical {
+            border-left-color: var(--status-error);
+            background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, var(--bg-card) 5%);
+        }
+
+        .zone.focus {
+            border-left-color: var(--accent-primary);
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, var(--bg-card) 5%);
+        }
+
+        .zone.inbox {
+            border-left-color: var(--text-muted);
+            background: linear-gradient(90deg, rgba(168, 162, 158, 0.05) 0%, var(--bg-card) 5%);
+        }
+
+        .zone-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .zone-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .zone.critical .zone-title {
+            color: var(--status-error);
+        }
+
+        .zone.focus .zone-title {
+            color: var(--accent-primary);
+        }
+
+        .zone.inbox .zone-title {
+            color: var(--text-secondary);
+        }
+
         .section {
             background: var(--bg-card);
             border-radius: 12px;
@@ -1082,8 +1173,53 @@
             transition: all 0.2s ease;
             background: var(--bg-page);
             border: 1px solid var(--border-light);
+            border-left: 4px solid transparent;
             cursor: grab;
             position: relative;
+        }
+
+        .task-item.zone-critical {
+            border-left-color: var(--status-error);
+            background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, var(--bg-page) 5%);
+        }
+
+        .task-item.zone-focus {
+            border-left-color: var(--accent-primary);
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, var(--bg-page) 5%);
+        }
+
+        .task-item.zone-inbox {
+            border-left-color: var(--text-muted);
+        }
+
+        .task-zone-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            font-size: 12px;
+        }
+
+        .task-blocking-icon {
+            color: var(--status-error);
+            font-size: 14px;
+        }
+
+        .task-external-deadline {
+            display: inline-block;
+            padding: 3px 8px;
+            background: var(--status-error);
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        .task-focus-indicator {
+            color: var(--accent-primary);
+            font-size: 14px;
+            margin-left: 4px;
         }
 
         .task-item:active {
@@ -2241,14 +2377,53 @@
         </div>
     </div>
 
+    <!-- Brain Dump Input -->
+    <div class="brain-dump-container">
+        <input type="text" 
+               id="brainDumpInput" 
+               class="brain-dump-input" 
+               placeholder="What needs to happen?"
+               onkeypress="handleBrainDump(event)">
+    </div>
+
     <div class="main-container" id="mainContainer">
         <!-- Central Task Area -->
         <div class="tasks-center">
             <div class="container">
                 <div class="date-stamp" id="dateStamp"></div>
 
-        <!-- TODAY SECTION -->
-        <div class="section" id="todaySection">
+        <!-- ZONE A: Critical / External Blockers -->
+        <div class="zone critical" id="criticalZone">
+            <div class="zone-header">
+                <h2 class="zone-title">🚨 Critical / External Blockers</h2>
+            </div>
+            <div id="criticalTasks" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <!-- ZONE B: Today's Focus -->
+        <div class="zone focus" id="focusZone">
+            <div class="zone-header">
+                <h2 class="zone-title">🎯 Today's Focus</h2>
+            </div>
+            <div id="focusTasks" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <!-- ZONE C: The Inbox -->
+        <div class="zone inbox" id="inboxZone">
+            <div class="zone-header">
+                <h2 class="zone-title">📥 The Inbox</h2>
+            </div>
+            <div id="inboxTasks" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <!-- TODAY SECTION (kept for backwards compatibility, hidden by default) -->
+        <div class="section" id="todaySection" style="display: none;">
             <div class="section-header">
                 <div class="section-title-group">
                     <span class="badge badge-today">Today</span>
@@ -2276,8 +2451,8 @@
             </div>
         </div>
 
-        <!-- LONG-TERM SECTION -->
-        <div class="section" id="longtermSection">
+        <!-- LONG-TERM SECTION (kept for backwards compatibility, hidden by default) -->
+        <div class="section" id="longtermSection" style="display: none;">
             <div class="section-header">
                 <div class="section-title-group">
                     <span class="badge badge-longterm">Long-term</span>
@@ -2731,6 +2906,33 @@
                     <div style="font-size: 11px; color: #666; margin-top: 4px;">
                         Separate multiple tags with commas
                     </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="taskEditIsBlocking" style="width: auto;">
+                        <span style="font-weight: 600; color: #333;">👤 Blocking others / Someone is relying on me</span>
+                    </label>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">External Deadline (date-limited by external factors)</label>
+                    <input type="date" id="taskEditExternalDeadline"
+                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="taskEditIsInFocus" style="width: auto;">
+                        <span style="font-weight: 600; color: #333;">🎯 Add to Today's Focus</span>
+                    </label>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Zone (optional)</label>
+                    <select id="taskEditZone"
+                            style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: inherit; background: white;">
+                        <option value="">-- Auto-assign based on properties --</option>
+                        <option value="critical">🚨 Critical / External Blockers</option>
+                        <option value="focus">🎯 Today's Focus</option>
+                        <option value="inbox">📥 The Inbox</option>
+                    </select>
                 </div>
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Notes / Plan</label>

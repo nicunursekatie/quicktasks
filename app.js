@@ -493,15 +493,184 @@ function updateDateStamp() {
     document.getElementById('dateStamp').textContent = date;
 }
 
+// Helper function to get today's date as YYYY-MM-DD
+function getTodayDate() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return formatDate(today);
+}
+
+// Helper function to get date X days from today
+function getDateDaysFromToday(days) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    date.setHours(0, 0, 0, 0);
+    return formatDate(date);
+}
+
+// Check if a date string is within N days from today
+function isDateWithinDays(dateStr, days) {
+    if (!dateStr) return false;
+    const taskDate = new Date(dateStr);
+    taskDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysDiff = Math.ceil((taskDate - today) / (1000 * 60 * 60 * 24));
+    return daysDiff >= 0 && daysDiff <= days;
+}
+
+// Get all tasks with their metadata (section, groupIndex, taskIndex, groupName)
+function getAllTasksWithMetadata() {
+    const allTasks = [];
+    ['today', 'longterm'].forEach(section => {
+        taskData[section].forEach((group, groupIndex) => {
+            group.tasks.forEach((task, taskIndex) => {
+                allTasks.push({
+                    ...task,
+                    section,
+                    groupIndex,
+                    taskIndex,
+                    groupName: group.groupName
+                });
+            });
+        });
+    });
+    return allTasks;
+}
+
+// Get tasks for Critical zone
+function getTasksForCriticalZone() {
+    const allTasks = getAllTasksWithMetadata();
+    const today = getTodayDate();
+    const tomorrow = getDateDaysFromToday(1);
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        
+        // Check if explicitly in critical zone
+        if (task.zone === 'critical') return true;
+        
+        // Check if blocking others
+        if (task.isBlocking === true) return true;
+        
+        // Check if has external deadline within 3 days
+        if (task.externalDeadline && isDateWithinDays(task.externalDeadline, 3)) {
+            return true;
+        }
+        
+        // Check if due date is today/tomorrow AND has blocking indicator
+        if (task.dueDate && (task.dueDate === today || task.dueDate === tomorrow) && task.isBlocking === true) {
+            return true;
+        }
+        
+        return false;
+    });
+}
+
+// Get tasks for Focus zone
+function getTasksForFocusZone() {
+    const allTasks = getAllTasksWithMetadata();
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        return task.isInFocus === true;
+    }).slice(0, 7); // Limit to 7 most important
+}
+
+// Get tasks for Inbox zone
+function getTasksForInboxZone() {
+    const allTasks = getAllTasksWithMetadata();
+    const today = getTodayDate();
+    const tomorrow = getDateDaysFromToday(1);
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        
+        // Explicitly in inbox zone
+        if (task.zone === 'inbox') return true;
+        
+        // Tasks without explicit zone assignment (backwards compatibility)
+        // Only include if they don't match other zone criteria
+        if (!task.zone && !task.isInFocus) {
+            // Check if it would be in critical zone
+            const isBlocking = task.isBlocking === true;
+            const hasExternalDeadline = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
+            const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow) && task.isBlocking;
+            
+            // Only show in inbox if not critical
+            if (isBlocking || hasExternalDeadline || hasUrgentDueDate) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        return false;
+    });
+}
+
+// Auto-update task zone property based on other properties
+function updateTaskZoneProperties(task) {
+    // Don't override explicit zone assignment
+    if (task.zone === 'inbox' || task.zone === 'critical' || task.zone === 'focus') {
+        // Zone already set explicitly, but we can still validate
+        return;
+    }
+    
+    // Auto-assign zone based on properties
+    const today = getTodayDate();
+    const tomorrow = getDateDaysFromToday(1);
+    
+    if (task.isBlocking || 
+        (task.externalDeadline && isDateWithinDays(task.externalDeadline, 3)) ||
+        (task.dueDate && (task.dueDate === today || task.dueDate === tomorrow) && task.isBlocking)) {
+        task.zone = 'critical';
+    } else if (task.isInFocus) {
+        task.zone = 'focus';
+    } else {
+        task.zone = 'inbox';
+    }
+}
+
+// Render tasks for a specific zone
+function renderZone(zoneType, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    let tasks = [];
+    if (zoneType === 'critical') {
+        tasks = getTasksForCriticalZone();
+    } else if (zoneType === 'focus') {
+        tasks = getTasksForFocusZone();
+    } else if (zoneType === 'inbox') {
+        tasks = getTasksForInboxZone();
+    }
+    
+    if (tasks.length === 0) {
+        container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;">No tasks in this zone</div>`;
+        return;
+    }
+    
+    container.innerHTML = tasks.map(task => {
+        return renderTask(task.section, task.groupIndex, task.taskIndex, task, zoneType);
+    }).join('');
+}
+
 // Render all tasks
 function renderTasks() {
+    // Render zones
+    renderZone('critical', 'criticalTasks');
+    renderZone('focus', 'focusTasks');
+    renderZone('inbox', 'inboxTasks');
+    
+    // Also render sections for backwards compatibility (can be hidden with CSS later)
     renderSection('today', 'todayTasks');
     renderSection('longterm', 'longtermTasks');
     
     // Update focus banner
     updateFocusBanner();
     
-    // Attach drag-and-drop event listeners after rendering both sections
+    // Attach drag-and-drop event listeners after rendering
     attachDragAndDropListeners();
 }
 
@@ -677,6 +846,20 @@ function attachDragAndDropListeners() {
         list.addEventListener('dragover', handleDragOver);
         list.addEventListener('drop', handleTaskDrop);
         list.addEventListener('dragleave', handleDragLeave);
+    });
+    
+    // Attach listeners to zone containers (drop zones for tasks)
+    const criticalTasks = document.getElementById('criticalTasks');
+    const focusTasks = document.getElementById('focusTasks');
+    const inboxTasks = document.getElementById('inboxTasks');
+    
+    [criticalTasks, focusTasks, inboxTasks].forEach(container => {
+        if (container && !container.hasAttribute('data-drag-listeners')) {
+            container.setAttribute('data-drag-listeners', 'true');
+            container.addEventListener('dragover', handleDragOver);
+            container.addEventListener('drop', handleZoneDrop);
+            container.addEventListener('dragleave', handleDragLeave);
+        }
     });
     
     // Attach listeners to section containers (drop zones for groups)
@@ -1022,6 +1205,85 @@ function handleTaskDrop(e) {
     return false;
 }
 
+function handleZoneDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    if (draggedType !== 'task' || !draggedElement) return false;
+    
+    const dropTarget = this;
+    const draggedSection = draggedElement.dataset.section;
+    const draggedGroupIndex = parseInt(draggedElement.dataset.groupIndex);
+    const draggedTaskIndex = parseInt(draggedElement.dataset.taskIndex);
+    
+    // Determine target zone from container ID
+    let targetZone = null;
+    if (dropTarget.id === 'criticalTasks') {
+        targetZone = 'critical';
+    } else if (dropTarget.id === 'focusTasks') {
+        // For focus zone, toggle the focus flag instead of setting zone
+        const task = taskData[draggedSection][draggedGroupIndex].tasks[draggedTaskIndex];
+        if (task) {
+            task.isInFocus = true;
+            saveData();
+            renderTasks();
+            updateStats();
+            updateProgress();
+        }
+        dropTarget.classList.remove('drag-over-list');
+        return false;
+    } else if (dropTarget.id === 'inboxTasks') {
+        targetZone = 'inbox';
+    } else {
+        return false;
+    }
+    
+    // Validate indices
+    if (isNaN(draggedGroupIndex) || isNaN(draggedTaskIndex)) {
+        console.error('Invalid drag indices:', { draggedGroupIndex, draggedTaskIndex });
+        return false;
+    }
+    
+    // Validate data exists
+    if (!taskData[draggedSection] || 
+        !taskData[draggedSection][draggedGroupIndex] ||
+        !taskData[draggedSection][draggedGroupIndex].tasks ||
+        draggedTaskIndex >= taskData[draggedSection][draggedGroupIndex].tasks.length) {
+        console.error('Invalid drag source:', { draggedSection, draggedGroupIndex, draggedTaskIndex });
+        return false;
+    }
+    
+    const task = taskData[draggedSection][draggedGroupIndex].tasks[draggedTaskIndex];
+    if (!task) {
+        console.error('Could not find dragged task:', { draggedSection, draggedGroupIndex, draggedTaskIndex });
+        return false;
+    }
+    
+    try {
+        // Update zone property
+        task.zone = targetZone;
+        
+        // Auto-update zone properties if moving to critical
+        if (targetZone === 'critical' && !task.isBlocking) {
+            task.isBlocking = true;
+        }
+        
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    } catch (error) {
+        console.error('Error during zone drop:', error);
+        renderTasks();
+        alert('An error occurred while moving the task to zone. Please try again.');
+        return false;
+    }
+    
+    dropTarget.classList.remove('drag-over-list');
+    return false;
+}
+
 function handleDragEnd(e) {
     this.classList.remove('dragging');
     
@@ -1047,15 +1309,36 @@ function escapeHtml(text) {
 }
 
 // Render a single task
-function renderTask(section, groupIndex, taskIndex, task) {
+function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
     if (!settings.showCompleted && task.completed) return '';
 
+    // Determine zone class for styling
+    let zoneClass = '';
+    if (zoneType) {
+        zoneClass = `zone-${zoneType}`;
+    } else if (task.zone) {
+        zoneClass = `zone-${task.zone}`;
+    }
+
+    // Build zone indicators
+    let zoneIndicators = '';
+    if (task.isBlocking) {
+        zoneIndicators += '<span class="task-blocking-icon" title="Blocking others / Someone is relying on me">👤</span>';
+    }
+    if (task.externalDeadline) {
+        zoneIndicators += `<span class="task-external-deadline" title="External deadline: ${task.externalDeadline}">${task.externalDeadline}</span>`;
+    }
+    if (task.isInFocus) {
+        zoneIndicators += '<span class="task-focus-indicator" title="In Today\'s Focus">🎯</span>';
+    }
+
     return `
-        <div class="task-item ${task.completed ? 'checked' : ''} ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'focused-task' : ''}" 
+        <div class="task-item ${task.completed ? 'checked' : ''} ${zoneClass} ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'focused-task' : ''}" 
              draggable="true" 
              data-section="${section}" 
              data-group-index="${groupIndex}" 
-             data-task-index="${taskIndex}">
+             data-task-index="${taskIndex}"
+             data-zone="${zoneType || task.zone || ''}">
             <span class="drag-handle-task" title="Drag to reorder" style="user-select: none;">⋮⋮</span>
             <input type="checkbox"
                    class="task-checkbox"
@@ -1065,6 +1348,7 @@ function renderTask(section, groupIndex, taskIndex, task) {
             <div class="task-content" onclick="if(!window.isDragging) editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
                 <div class="task-title">
                     ${task.emotionalWeight === 'light' ? '💨 ' : task.emotionalWeight === 'moderate' ? '⚖️ ' : task.emotionalWeight === 'heavy' ? '🎯 ' : ''}${escapeHtml(task.title)}
+                    ${zoneIndicators}
                     ${task.status && task.status !== 'not-started' ? `<span style="display: inline-block; margin-left: 8px; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; ${
                         task.status === 'planning' ? 'background: rgba(255, 193, 7, 0.2); color: #f39c12; border: 1px solid rgba(243, 156, 18, 0.4);' :
                         task.status === 'in-progress' ? 'background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.4);' :
@@ -1083,7 +1367,7 @@ function renderTask(section, groupIndex, taskIndex, task) {
                         ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.estimatedMinutes}min</span>`
                         : ''
                     }
-                    ${task.dueDate ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">📅 ${task.dueDate}</span>` : ''}
+                    ${task.dueDate && !task.externalDeadline ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">📅 ${task.dueDate}</span>` : ''}
                 </div>
                 ${task.tags && task.tags.length > 0 ? `
                     <div class="task-tags">
@@ -1115,9 +1399,11 @@ function renderTask(section, groupIndex, taskIndex, task) {
                     task.status === 'completed' ? '✅' :
                     '⚪'
                 }</button>
-                <button class="focus-btn ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'active' : ''}"
-                        onclick="toggleFocusTask('${section}', ${groupIndex}, ${taskIndex})"
-                        title="${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'Stop focusing on this task' : 'Focus on this task (periodic alerts)'}">🎯</button>
+                <button class="focus-btn ${task.isInFocus ? 'active' : ''} ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'active' : ''}"
+                        onclick="event.stopPropagation(); toggleFocus('${section}', ${groupIndex}, ${taskIndex})"
+                        title="${task.isInFocus ? 'Remove from Today\'s Focus' : 'Add to Today\'s Focus'}">🎯</button>
+                <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'critical')" title="Move to Critical zone">🚨</button>
+                <button class="zone-btn" onclick="event.stopPropagation(); moveTaskToZone('${section}', ${groupIndex}, ${taskIndex}, 'inbox')" title="Move to Inbox">📥</button>
                 <button class="ai-btn" onclick="showAIMenu('${section}', ${groupIndex}, ${taskIndex})" title="AI Assistant">✨</button>
                 <button class="edit-btn" onclick="editTask('${section}', ${groupIndex}, ${taskIndex})" title="Edit task">✏️</button>
                 <button class="convert-btn" onclick="convertToProject('${section}', ${groupIndex}, ${taskIndex})" title="Convert to project">📁</button>
@@ -1489,6 +1775,10 @@ window.editTask = function(section, groupIndex, taskIndex) {
     document.getElementById('taskEditStatus').value = task.status || 'not-started';
     document.getElementById('taskEditTags').value = task.tags ? task.tags.join(', ') : '';
     document.getElementById('taskEditNotes').value = task.notes || '';
+    document.getElementById('taskEditIsBlocking').checked = task.isBlocking === true;
+    document.getElementById('taskEditExternalDeadline').value = task.externalDeadline || '';
+    document.getElementById('taskEditIsInFocus').checked = task.isInFocus === true;
+    document.getElementById('taskEditZone').value = task.zone || '';
 
     // Populate project dropdown
     const projectSelect = document.getElementById('taskEditProject');
@@ -1662,6 +1952,39 @@ window.submitTaskEdit = function() {
             .map(tag => tag.toLowerCase());
     } else {
         delete task.tags;
+    }
+
+    // Update isBlocking
+    const isBlocking = document.getElementById('taskEditIsBlocking').checked;
+    if (isBlocking) {
+        task.isBlocking = true;
+    } else {
+        delete task.isBlocking;
+    }
+
+    // Update externalDeadline
+    const externalDeadline = document.getElementById('taskEditExternalDeadline').value;
+    if (externalDeadline) {
+        task.externalDeadline = externalDeadline;
+    } else {
+        delete task.externalDeadline;
+    }
+
+    // Update isInFocus
+    const isInFocus = document.getElementById('taskEditIsInFocus').checked;
+    if (isInFocus) {
+        task.isInFocus = true;
+    } else {
+        delete task.isInFocus;
+    }
+
+    // Update zone
+    const zone = document.getElementById('taskEditZone').value;
+    if (zone) {
+        task.zone = zone;
+    } else {
+        // Auto-update zone based on properties if not explicitly set
+        updateTaskZoneProperties(task);
     }
 
     // Check if project changed
@@ -1847,6 +2170,45 @@ window.moveGroup = function(fromSection, groupIndex) {
 }
 
 // Move task to other section
+// Move task to a specific zone
+window.moveTaskToZone = function(section, groupIndex, taskIndex, targetZone) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    if (!task) return;
+
+    // Update zone property
+    task.zone = targetZone;
+
+    // Auto-update zone properties if moving to critical
+    if (targetZone === 'critical') {
+        if (!task.isBlocking) task.isBlocking = true;
+    }
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+}
+
+// Toggle focus flag for a task
+window.toggleFocus = function(section, groupIndex, taskIndex) {
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    if (!task) return;
+
+    // Toggle focus flag
+    task.isInFocus = !task.isInFocus;
+
+    // Auto-update zone if needed
+    if (task.isInFocus) {
+        // If not explicitly in critical zone, we can keep current zone
+        // Focus tasks appear in both their zone and focus zone
+    }
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+}
+
 window.moveTask = function(fromSection, groupIndex, taskIndex) {
     const toSection = fromSection === 'today' ? 'longterm' : 'today';
     const task = taskData[fromSection][groupIndex].tasks[taskIndex];
@@ -1959,6 +2321,78 @@ window.convertToProject = async function(section, groupIndex, taskIndex) {
         aiBreakdownProject(targetSection, newProjectIndex);
     }
 }
+
+// Brain dump handler - zero friction task capture
+window.handleBrainDump = function(event) {
+    if (event.key === 'Enter') {
+        const input = document.getElementById('brainDumpInput');
+        const title = input.value.trim();
+
+        if (!title) return;
+
+        // Create task with minimal properties, add to inbox zone
+        const newTask = {
+            title: title,
+            completed: false,
+            zone: 'inbox'
+        };
+
+        // Add to "Quick Tasks" group in longterm section (or create it)
+        let quickGroup = taskData.longterm.find(g => g.groupName === 'Quick Tasks');
+        if (!quickGroup) {
+            quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+            taskData.longterm.unshift(quickGroup);
+        }
+
+        quickGroup.tasks.push(newTask);
+        input.value = '';
+        input.focus(); // Keep focus for rapid entry
+
+        saveData();
+        renderTasks();
+        updateStats();
+        updateProgress();
+    }
+}
+
+// Global keyboard shortcut to focus brain dump input
+document.addEventListener('DOMContentLoaded', function() {
+    // Focus brain dump input on load
+    setTimeout(() => {
+        const brainDumpInput = document.getElementById('brainDumpInput');
+        if (brainDumpInput) {
+            brainDumpInput.focus();
+        }
+    }, 100);
+
+    // Keyboard shortcut: Space (when not typing) or Cmd/Ctrl+K
+    document.addEventListener('keydown', function(e) {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' || 
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+        );
+
+        // Space bar shortcut (only when not in an input)
+        if (e.key === ' ' && !isInputFocused && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            const brainDumpInput = document.getElementById('brainDumpInput');
+            if (brainDumpInput) {
+                brainDumpInput.focus();
+            }
+        }
+
+        // Cmd/Ctrl+K shortcut
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            const brainDumpInput = document.getElementById('brainDumpInput');
+            if (brainDumpInput) {
+                brainDumpInput.focus();
+            }
+        }
+    });
+});
 
 // Quick add task
 window.handleQuickAdd = function(event, section) {
