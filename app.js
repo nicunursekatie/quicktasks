@@ -902,45 +902,6 @@ function renderZone(zoneType, containerId) {
         return;
     }
     
-    // Get events for this zone (only for date-based zones)
-    let events = [];
-    if (zoneType === 'today') {
-        events = getEventsForToday();
-    } else if (zoneType === 'tomorrow') {
-        events = getEventsForTomorrow();
-    } else if (zoneType === 'week') {
-        events = getEventsForWeek();
-    }
-    
-    // Build HTML: events first, then tasks grouped by project
-    let html = '';
-    
-    // Render events section if there are any
-    if (events.length > 0) {
-        html += `
-            <div class="zone-events-section" style="margin-bottom: 20px; padding: 12px; background: rgba(66, 133, 244, 0.05); border-radius: 8px; border-left: 3px solid #4285F4;">
-                <div class="zone-events-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                    <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary);">
-                        📅 Calendar Events (${events.length})
-                    </h3>
-                </div>
-                <div class="zone-events-list">
-                    ${events.map(event => renderEvent(event, zoneType)).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    if (tasks.length === 0 && events.length === 0) {
-        container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-style: italic;">No tasks or events in this zone</div>`;
-        return;
-    }
-    
-    if (tasks.length === 0) {
-        container.innerHTML = html;
-        return;
-    }
-    
     // Group tasks by project
     const tasksByProject = new Map();
     tasks.forEach(task => {
