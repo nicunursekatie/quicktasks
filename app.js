@@ -2389,11 +2389,11 @@ function loadRefineTask() {
     const quickActions = document.getElementById('refineQuickActions');
     quickActions.innerHTML = `
         <button class="refine-quick-btn ${(changes.isBlocking || task.isBlocking) ? 'active' : ''}" 
-                onclick="refineToggleQuick('isBlocking')">👤 Blocking Others</button>
+                onclick="refineToggleQuick('isBlocking')" title="Mark as blocking others">👤 Blocking Others</button>
         <button class="refine-quick-btn ${(changes.isInFocus || task.isInFocus) ? 'active' : ''}" 
-                onclick="refineToggleQuick('isInFocus')">🎯 Add to Focus</button>
-        <button class="refine-quick-btn" onclick="refineQuickMove('critical')">🚨 Move to Critical</button>
-        <button class="refine-quick-btn" onclick="refineQuickMove('inbox')">📥 Keep in Inbox</button>
+                onclick="refineToggleQuick('isInFocus')" title="Add to Today's Focus">🎯 Add to Focus</button>
+        <button class="refine-quick-btn" onclick="refineQuickMove('critical')" title="Move to Critical zone">🚨 Move to Critical</button>
+        <button class="refine-quick-btn" onclick="refineQuickMove('inbox')" title="Keep in Inbox">📥 Keep in Inbox</button>
     `;
     
     // Update counter and navigation
