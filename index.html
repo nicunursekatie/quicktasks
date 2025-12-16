@@ -2142,6 +2142,24 @@
             border-bottom: 2px solid var(--border-light);
         }
 
+        .refine-inbox-btn {
+            padding: 8px 16px;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .refine-inbox-btn:hover {
+            background: var(--accent-primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+        }
+
         .zone-title {
             font-size: 20px;
             font-weight: 700;
@@ -3477,6 +3495,203 @@
             background: var(--accent-primary-hover);
         }
 
+        /* Refine Inbox Modal Styles */
+        .refine-modal-content {
+            max-width: 700px;
+            width: 95%;
+        }
+
+        .refine-mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: var(--bg-page);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .refine-mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .refine-mode-btn.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .refine-task-card {
+            background: var(--bg-page);
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .refine-task-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);
+        }
+
+        .refine-task-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .refine-task-title {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .refine-quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .refine-quick-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-medium);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .refine-quick-btn:hover {
+            background: var(--accent-light);
+            border-color: var(--accent-primary);
+        }
+
+        .refine-quick-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        .refine-input-group {
+            margin-bottom: 12px;
+        }
+
+        .refine-input-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .refine-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+
+        .refine-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-light);
+        }
+
+        .refine-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .refine-task-counter {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .refine-nav-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .refine-nav-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-medium);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .refine-nav-btn:hover:not(:disabled) {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        .refine-nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .refine-task-list {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .refine-task-item {
+            background: var(--bg-page);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .refine-task-item:hover {
+            border-color: var(--accent-primary);
+            background: var(--bg-card);
+        }
+
+        .refine-task-item-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .refine-batch-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
         /* Choice modal buttons */
         .choice-buttons {
             display: flex;
@@ -3741,6 +3956,7 @@
         <div class="zone inbox" id="inboxZone">
             <div class="zone-header">
                 <h2 class="zone-title">📥 The Inbox</h2>
+                <button class="refine-inbox-btn" onclick="openRefineInboxModal()" title="Refine inbox tasks">✨ Refine</button>
             </div>
             <div id="inboxTasks" class="task-list">
                 <!-- Tasks will be rendered here -->
@@ -5938,6 +6154,70 @@
             <div class="custom-modal-footer">
                 <button class="modal-btn modal-btn-cancel" onclick="closeTaskFollowUpModal()">Skip</button>
                 <button class="modal-btn modal-btn-submit" onclick="submitTaskFollowUp()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refine Inbox Modal -->
+    <div id="refineInboxModal" class="custom-modal">
+        <div class="custom-modal-content refine-modal-content">
+            <div class="custom-modal-header">
+                <h3>✨ Refine Inbox Tasks</h3>
+                <button class="modal-close-btn" onclick="closeRefineInboxModal()">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <div class="refine-mode-toggle">
+                    <button class="refine-mode-btn active" id="refineModeOne" onclick="setRefineMode('one')">One at a Time</button>
+                    <button class="refine-mode-btn" id="refineModeBatch" onclick="setRefineMode('batch')">Batch View</button>
+                </div>
+                
+                <!-- One at a Time View -->
+                <div id="refineOneView" class="refine-view">
+                    <div class="refine-task-card">
+                        <div class="refine-task-header">
+                            <h4 class="refine-task-title" id="refineCurrentTaskTitle"></h4>
+                        </div>
+                        <div class="refine-quick-actions" id="refineQuickActions">
+                            <!-- Quick action buttons will be inserted here -->
+                        </div>
+                        <div class="refine-input-group">
+                            <label class="refine-input-label">Due Date (optional)</label>
+                            <input type="text" class="refine-input" id="refineDueDate" placeholder="tomorrow, next Friday, 2024-12-25...">
+                        </div>
+                        <div class="refine-input-group">
+                            <label class="refine-input-label">External Deadline (date-limited by external factors)</label>
+                            <input type="date" class="refine-input" id="refineExternalDeadline">
+                        </div>
+                        <div class="refine-input-group">
+                            <label class="refine-input-label">Tags (optional, comma-separated)</label>
+                            <input type="text" class="refine-input" id="refineTags" placeholder="urgent, work, personal...">
+                        </div>
+                        <div class="refine-input-group">
+                            <label class="refine-input-label">Notes (optional)</label>
+                            <textarea class="refine-input" id="refineNotes" rows="3" placeholder="Additional context or details..."></textarea>
+                        </div>
+                        <div class="refine-navigation">
+                            <div class="refine-task-counter" id="refineTaskCounter">Task 1 of 5</div>
+                            <div class="refine-nav-buttons">
+                                <button class="refine-nav-btn" id="refinePrevBtn" onclick="refinePreviousTask()" disabled>← Previous</button>
+                                <button class="refine-nav-btn" onclick="refineSkipTask()">Skip</button>
+                                <button class="refine-nav-btn" onclick="refineApplyToCurrent()">Apply</button>
+                                <button class="refine-nav-btn" id="refineNextBtn" onclick="refineNextTask()">Next →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Batch View -->
+                <div id="refineBatchView" class="refine-view" style="display: none;">
+                    <div class="refine-task-list" id="refineBatchTaskList">
+                        <!-- Task list will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="custom-modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeRefineInboxModal()">Close</button>
+                <button class="modal-btn modal-btn-submit" onclick="refineSaveAll()">Save All Changes</button>
             </div>
         </div>
     </div>

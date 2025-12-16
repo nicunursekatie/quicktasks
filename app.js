@@ -2315,6 +2315,324 @@ window.toggleFocus = function(section, groupIndex, taskIndex) {
     updateProgress();
 }
 
+// ===== REFINE INBOX MODAL =====
+let refineInboxTasks = [];
+let refineCurrentIndex = 0;
+let refineMode = 'one'; // 'one' or 'batch'
+let refineChanges = new Map(); // Track changes before saving
+
+window.openRefineInboxModal = function() {
+    // Get all inbox tasks
+    refineInboxTasks = getTasksForInboxZone();
+    
+    if (refineInboxTasks.length === 0) {
+        alert('No tasks in inbox to refine!');
+        return;
+    }
+    
+    refineCurrentIndex = 0;
+    refineChanges.clear();
+    
+    // Reset mode to one-at-a-time
+    refineMode = 'one';
+    setRefineMode('one');
+    
+    // Load first task
+    loadRefineTask();
+    
+    // Show modal
+    document.getElementById('refineInboxModal').classList.add('active');
+}
+
+window.closeRefineInboxModal = function() {
+    document.getElementById('refineInboxModal').classList.remove('active');
+    refineInboxTasks = [];
+    refineChanges.clear();
+}
+
+window.setRefineMode = function(mode) {
+    refineMode = mode;
+    
+    // Update button states
+    document.getElementById('refineModeOne').classList.toggle('active', mode === 'one');
+    document.getElementById('refineModeBatch').classList.toggle('active', mode === 'batch');
+    
+    // Show/hide views
+    document.getElementById('refineOneView').style.display = mode === 'one' ? 'block' : 'none';
+    document.getElementById('refineBatchView').style.display = mode === 'batch' ? 'block' : 'none';
+    
+    if (mode === 'batch') {
+        renderBatchView();
+    } else {
+        loadRefineTask();
+    }
+}
+
+function loadRefineTask() {
+    if (refineInboxTasks.length === 0) return;
+    
+    const taskMeta = refineInboxTasks[refineCurrentIndex];
+    const task = taskData[taskMeta.section][taskMeta.groupIndex].tasks[taskMeta.taskIndex];
+    
+    // Get any pending changes for this task
+    const taskKey = `${taskMeta.section}-${taskMeta.groupIndex}-${taskMeta.taskIndex}`;
+    const changes = refineChanges.get(taskKey) || {};
+    
+    // Update UI
+    document.getElementById('refineCurrentTaskTitle').textContent = task.title;
+    document.getElementById('refineDueDate').value = changes.dueDate || task.dueDate || '';
+    document.getElementById('refineExternalDeadline').value = changes.externalDeadline || task.externalDeadline || '';
+    document.getElementById('refineTags').value = changes.tags || (task.tags ? task.tags.join(', ') : '');
+    document.getElementById('refineNotes').value = changes.notes || task.notes || '';
+    
+    // Update quick action buttons
+    const quickActions = document.getElementById('refineQuickActions');
+    quickActions.innerHTML = `
+        <button class="refine-quick-btn ${(changes.isBlocking || task.isBlocking) ? 'active' : ''}" 
+                onclick="refineToggleQuick('isBlocking')">👤 Blocking Others</button>
+        <button class="refine-quick-btn ${(changes.isInFocus || task.isInFocus) ? 'active' : ''}" 
+                onclick="refineToggleQuick('isInFocus')">🎯 Add to Focus</button>
+        <button class="refine-quick-btn" onclick="refineQuickMove('critical')">🚨 Move to Critical</button>
+        <button class="refine-quick-btn" onclick="refineQuickMove('inbox')">📥 Keep in Inbox</button>
+    `;
+    
+    // Update counter and navigation
+    document.getElementById('refineTaskCounter').textContent = `Task ${refineCurrentIndex + 1} of ${refineInboxTasks.length}`;
+    document.getElementById('refinePrevBtn').disabled = refineCurrentIndex === 0;
+    document.getElementById('refineNextBtn').disabled = refineCurrentIndex === refineInboxTasks.length - 1;
+}
+
+window.refineNextTask = function() {
+    if (refineCurrentIndex < refineInboxTasks.length - 1) {
+        refineCurrentIndex++;
+        loadRefineTask();
+    }
+}
+
+window.refinePreviousTask = function() {
+    if (refineCurrentIndex > 0) {
+        refineCurrentIndex--;
+        loadRefineTask();
+    }
+}
+
+window.refineSkipTask = function() {
+    refineNextTask();
+}
+
+window.refineApplyToCurrent = function() {
+    const taskMeta = refineInboxTasks[refineCurrentIndex];
+    const taskKey = `${taskMeta.section}-${taskMeta.groupIndex}-${taskMeta.taskIndex}`;
+    
+    // Collect changes from form
+    const changes = {
+        dueDate: document.getElementById('refineDueDate').value.trim(),
+        externalDeadline: document.getElementById('refineExternalDeadline').value,
+        tags: document.getElementById('refineTags').value.trim(),
+        notes: document.getElementById('refineNotes').value.trim()
+    };
+    
+    // Apply quick toggles if set
+    const quickActions = document.getElementById('refineQuickActions');
+    const blockingBtn = quickActions.querySelector('[onclick*="isBlocking"]');
+    const focusBtn = quickActions.querySelector('[onclick*="isInFocus"]');
+    
+    const existingChanges = refineChanges.get(taskKey) || {};
+    
+    if (blockingBtn && blockingBtn.classList.contains('active')) {
+        changes.isBlocking = true;
+    } else if (existingChanges.isBlocking === undefined) {
+        // Only clear if not explicitly set
+        changes.isBlocking = false;
+    }
+    
+    if (focusBtn && focusBtn.classList.contains('active')) {
+        changes.isInFocus = true;
+    } else if (existingChanges.isInFocus === undefined) {
+        changes.isInFocus = false;
+    }
+    
+    // Merge with existing changes
+    refineChanges.set(taskKey, { ...existingChanges, ...changes });
+    
+    // Move to next task
+    refineNextTask();
+}
+
+window.refineToggleQuick = function(property) {
+    const taskMeta = refineInboxTasks[refineCurrentIndex];
+    const taskKey = `${taskMeta.section}-${taskMeta.groupIndex}-${taskMeta.taskIndex}`;
+    const task = taskData[taskMeta.section][taskMeta.groupIndex].tasks[taskMeta.taskIndex];
+    const changes = refineChanges.get(taskKey) || {};
+    
+    // Determine current value (changes override task)
+    const currentValue = changes[property] !== undefined ? changes[property] : (task[property] === true);
+    
+    // Toggle the property
+    changes[property] = !currentValue;
+    refineChanges.set(taskKey, changes);
+    
+    // Update button state
+    const btn = event.target.closest('.refine-quick-btn');
+    if (btn) {
+        btn.classList.toggle('active', changes[property]);
+    } else {
+        // Reload to refresh all button states
+        loadRefineTask();
+    }
+}
+
+window.refineQuickMove = function(zone) {
+    const taskMeta = refineInboxTasks[refineCurrentIndex];
+    const taskKey = `${taskMeta.section}-${taskMeta.groupIndex}-${taskMeta.taskIndex}`;
+    const changes = refineChanges.get(taskKey) || {};
+    
+    changes.zone = zone;
+    refineChanges.set(taskKey, changes);
+    
+    // Move to next task
+    refineNextTask();
+}
+
+function renderBatchView() {
+    const container = document.getElementById('refineBatchTaskList');
+    
+    if (refineInboxTasks.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">No tasks in inbox</div>';
+        return;
+    }
+    
+    container.innerHTML = refineInboxTasks.map((taskMeta, index) => {
+        const task = taskData[taskMeta.section][taskMeta.groupIndex].tasks[taskMeta.taskIndex];
+        const taskKey = `${taskMeta.section}-${taskMeta.groupIndex}-${taskMeta.taskIndex}`;
+        const changes = refineChanges.get(taskKey) || {};
+        
+        return `
+            <div class="refine-task-item" onclick="refineEditInBatch(${index})">
+                <div class="refine-task-item-title">${escapeHtml(task.title)}</div>
+                <div class="refine-batch-actions">
+                    <button class="refine-quick-btn ${(changes.isBlocking || task.isBlocking) ? 'active' : ''}" 
+                            onclick="event.stopPropagation(); refineBatchToggle(${index}, 'isBlocking')">👤 Blocking</button>
+                    <button class="refine-quick-btn ${(changes.isInFocus || task.isInFocus) ? 'active' : ''}" 
+                            onclick="event.stopPropagation(); refineBatchToggle(${index}, 'isInFocus')">🎯 Focus</button>
+                    <button class="refine-quick-btn ${changes.zone === 'critical' || task.zone === 'critical' ? 'active' : ''}" 
+                            onclick="event.stopPropagation(); refineBatchSetZone(${index}, 'critical')">🚨 Critical</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.refineEditInBatch = function(index) {
+    refineCurrentIndex = index;
+    setRefineMode('one');
+    loadRefineTask();
+}
+
+window.refineBatchToggle = function(index, property) {
+    const taskMeta = refineInboxTasks[index];
+    const taskKey = `${taskMeta.section}-${taskMeta.groupIndex}-${taskMeta.taskIndex}`;
+    const changes = refineChanges.get(taskKey) || {};
+    const task = taskData[taskMeta.section][taskMeta.groupIndex].tasks[taskMeta.taskIndex];
+    
+    changes[property] = !(changes[property] || task[property] === true);
+    refineChanges.set(taskKey, changes);
+    
+    renderBatchView();
+}
+
+window.refineBatchSetZone = function(index, zone) {
+    const taskMeta = refineInboxTasks[index];
+    const taskKey = `${taskMeta.section}-${taskMeta.groupIndex}-${taskMeta.taskIndex}`;
+    const changes = refineChanges.get(taskKey) || {};
+    
+    changes.zone = zone;
+    refineChanges.set(taskKey, changes);
+    
+    renderBatchView();
+}
+
+window.refineSaveAll = function() {
+    // Apply all changes to tasks
+    refineChanges.forEach((changes, taskKey) => {
+        const parts = taskKey.split('-');
+        const section = parts[0];
+        const groupIndex = parseInt(parts[1]);
+        const taskIndex = parseInt(parts[2]);
+        
+        if (!taskData[section] || !taskData[section][groupIndex] || !taskData[section][groupIndex].tasks[taskIndex]) {
+            return;
+        }
+        
+        const task = taskData[section][groupIndex].tasks[taskIndex];
+        
+        // Apply all changes
+        if (changes.dueDate !== undefined) {
+            if (changes.dueDate) {
+                // Parse natural language date
+                const parsedDate = parseNaturalDate(changes.dueDate);
+                task.dueDate = parsedDate || changes.dueDate;
+            } else {
+                delete task.dueDate;
+            }
+        }
+        
+        if (changes.externalDeadline !== undefined) {
+            if (changes.externalDeadline) {
+                task.externalDeadline = changes.externalDeadline;
+            } else {
+                delete task.externalDeadline;
+            }
+        }
+        
+        if (changes.tags !== undefined) {
+            if (changes.tags) {
+                task.tags = changes.tags.split(',').map(t => t.trim()).filter(t => t).map(t => t.toLowerCase());
+            } else {
+                delete task.tags;
+            }
+        }
+        
+        if (changes.notes !== undefined) {
+            if (changes.notes) {
+                task.notes = changes.notes;
+            } else {
+                delete task.notes;
+            }
+        }
+        
+        if (changes.isBlocking !== undefined) {
+            if (changes.isBlocking) {
+                task.isBlocking = true;
+            } else {
+                delete task.isBlocking;
+            }
+        }
+        
+        if (changes.isInFocus !== undefined) {
+            if (changes.isInFocus) {
+                task.isInFocus = true;
+            } else {
+                delete task.isInFocus;
+            }
+        }
+        
+        if (changes.zone !== undefined) {
+            task.zone = changes.zone;
+        }
+        
+        // Auto-update zone properties
+        updateTaskZoneProperties(task);
+    });
+    
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+    
+    closeRefineInboxModal();
+}
+
 window.moveTask = function(fromSection, groupIndex, taskIndex) {
     const toSection = fromSection === 'today' ? 'longterm' : 'today';
     const task = taskData[fromSection][groupIndex].tasks[taskIndex];
