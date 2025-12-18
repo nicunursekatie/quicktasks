@@ -3367,6 +3367,123 @@
             }
         }
 
+        /* Small-phone hardening (320/375/390/430) */
+        @media (max-width: 430px) {
+            html, body {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            /* Off-canvas panels: avoid negative-right overflow */
+            .stats-panel, .settings-panel {
+                width: 100vw;
+                right: -100vw;
+                max-width: 100vw;
+                padding: 16px;
+            }
+
+            /* Focus banner: allow shrinking + wrapping */
+            .focus-banner-content {
+                gap: 10px;
+            }
+            .focus-banner-text {
+                font-size: 20px;
+                line-height: 1.1;
+                text-align: center;
+            }
+            .focus-banner-task {
+                min-width: 0;
+                font-size: 22px;
+                line-height: 1.15;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+                text-align: center;
+            }
+
+            /* Full calendar controls: prevent button row overflow */
+            .full-calendar-header {
+                padding: 12px 14px;
+            }
+            .full-calendar-nav {
+                padding: 12px 14px;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .full-calendar-month-year {
+                width: 100%;
+                text-align: center;
+                font-size: 18px;
+            }
+            .full-calendar-nav-btn {
+                flex: 1;
+                min-width: 0;
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+            .full-calendar-body {
+                padding: 12px 14px;
+            }
+            .full-calendar-grid {
+                gap: 6px;
+            }
+
+            /* Calendar frame (sidebar) nav: prevent min-width overflow */
+            .calendar-frame-nav {
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-bottom: 16px;
+            }
+            .calendar-frame-month {
+                min-width: 0;
+                width: 100%;
+                font-size: 18px;
+            }
+            .calendar-frame-nav-btn {
+                flex: 1;
+                min-width: 0;
+                padding: 10px 12px;
+            }
+            .calendar-frame-grid {
+                padding: 12px;
+            }
+
+            /* Event/task modals: make fixed-width inputs fluid */
+            #newEventDuration,
+            #newEventEndTime,
+            #newEventTravelTime,
+            #editEventDuration,
+            #editEventEndTime,
+            #editEventTravelTime {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .top-bar {
+                padding: 10px;
+            }
+            .icon-btn {
+                width: 34px;
+                height: 34px;
+            }
+            .focus-banner-icon {
+                font-size: 28px;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .focus-banner-text {
+                font-size: 18px;
+            }
+            .focus-banner-task {
+                font-size: 20px;
+            }
+            .quick-link {
+                padding: 6px 10px;
+            }
+        }
+
         /* Touch device optimizations */
         @media (hover: none) and (pointer: coarse) {
             /* Always show action buttons on touch devices */
