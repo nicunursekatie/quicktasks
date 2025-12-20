@@ -440,8 +440,14 @@ function extractDateFromTitle(title) {
     return { cleanTitle: title, dueDate: null };
 }
 
-// Initialize
+// Initialize - only run when user is authenticated
 function init() {
+    // Check if user is authenticated before initializing
+    if (!window.currentUser) {
+        console.log('Waiting for authentication before initializing app...');
+        return;
+    }
+    
     updateDateStamp();
     applyTheme();
     // Migrate existing tasks to zones (one-time migration on first load after update)
@@ -3655,7 +3661,22 @@ window.handleBrainDump = function(event) {
 }
 
 // Global keyboard shortcut to focus brain dump input
+// Wait for DOM and auth state before initializing
 document.addEventListener('DOMContentLoaded', function() {
+    // Wait for auth state change event before initializing
+    const initOnAuth = () => {
+        if (window.currentUser) {
+            init();
+        }
+    };
+    
+    // If auth is already ready, try to init
+    if (window.firebaseAuthReady) {
+        initOnAuth();
+    } else {
+        // Wait for auth state change
+        window.addEventListener('authStateChanged', initOnAuth);
+    }
     // Focus brain dump input on load
     setTimeout(() => {
         const brainDumpInput = document.getElementById('brainDumpInput');

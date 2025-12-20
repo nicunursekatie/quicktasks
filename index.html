@@ -70,6 +70,12 @@
             --border-medium: #DDD8D0;
             --border-strong: #C8C0B4;
 
+            /* Login page styles */
+            --login-bg: linear-gradient(135deg, #F8F6F3 0%, #FFFFFF 100%);
+            --login-card-bg: #FFFFFF;
+            --login-text: var(--text-primary);
+            --login-text-secondary: var(--text-secondary);
+
             /* Refined accent colors */
             --accent-primary: #E88C0C;
             --accent-primary-hover: #C67A0A;
@@ -288,6 +294,175 @@
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+
+        /* Login Page Styles */
+        .login-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: var(--login-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .login-container {
+            background: var(--login-card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            padding: var(--spacing-2xl);
+            width: 100%;
+            max-width: 420px;
+            margin: var(--spacing-lg);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .login-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .login-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            transition: all var(--transition-fast);
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-xs);
+        }
+
+        .login-btn.primary {
+            background: var(--accent-primary);
+            color: var(--text-inverse);
+        }
+
+        .login-btn.primary:hover {
+            background: var(--accent-primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .login-btn.secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-medium);
+        }
+
+        .login-btn.secondary:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-strong);
+        }
+
+        .login-btn.google {
+            background: #FFFFFF;
+            color: var(--text-primary);
+            border: 1px solid var(--border-medium);
+        }
+
+        .login-btn.google:hover {
+            background: #FAFAFA;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .login-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: var(--spacing-md) 0;
+        }
+
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .login-divider span {
+            padding: 0 var(--spacing-md);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .login-error {
+            padding: 12px 16px;
+            background: #FEE2E2;
+            border: 1px solid #FECACA;
+            border-radius: var(--radius-md);
+            color: var(--status-error);
+            font-size: 13px;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .login-error.hidden {
+            display: none;
+        }
+
+        .login-footer {
+            margin-top: var(--spacing-xl);
+            text-align: center;
+        }
+
+        .login-footer-text {
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
         /* Focus Mode Banner */
@@ -4178,6 +4353,52 @@
     <div class="overlay" id="overlay"></div>
 
     <!-- Top Quick Links Bar -->
+    <!-- Login Page -->
+    <div class="login-page" id="loginPage">
+        <div class="login-container">
+            <div class="login-header">
+                <h1 class="login-title">Task Dashboard</h1>
+                <p class="login-subtitle">Sign in to access your tasks</p>
+            </div>
+            
+            <div class="login-form">
+                <div id="loginError" class="login-error hidden"></div>
+                
+                <!-- Email/Password Login -->
+                <div class="login-section">
+                    <h3 class="login-section-title">Email & Password</h3>
+                <input type="email" id="loginEmail" class="login-input" placeholder="Email" autocomplete="email" onkeypress="if(event.key==='Enter') handleEmailLogin()">
+                <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password" onkeypress="if(event.key==='Enter') handleEmailLogin()">
+                    <button class="login-btn primary" onclick="handleEmailLogin()">Sign In</button>
+                    <button class="login-btn secondary" onclick="handleEmailSignup()">Create Account</button>
+                </div>
+                
+                <div class="login-divider">
+                    <span>or</span>
+                </div>
+                
+                <!-- Google Sign In -->
+                <div class="login-section">
+                    <button class="login-btn google" onclick="handleGoogleLogin()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 8px;">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        Sign in with Google
+                    </button>
+                </div>
+            </div>
+            
+            <div class="login-footer">
+                <p class="login-footer-text">Your data is securely stored in the cloud</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App (hidden until authenticated) -->
+    <div class="main-app" id="mainApp" style="display: none;">
     <div class="top-bar">
         <div class="quick-links">
             <a href="https://calendar.google.com" target="_blank" class="quick-link">Calendar</a>
@@ -4203,6 +4424,7 @@
             <button class="icon-btn" onclick="toggleStats()" title="Statistics">📊</button>
             <button class="icon-btn" onclick="toggleSettings()" title="Settings">⚙️</button>
             <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+            <button class="icon-btn" onclick="handleSignOut()" title="Sign Out">🚪</button>
         </div>
     </div>
 
@@ -6466,6 +6688,7 @@
     <script type="module">
         // Import Firebase modules
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
@@ -6481,17 +6704,28 @@
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
 
-        // Make db and Firestore functions available globally
+        // Make auth, db and Firestore functions available globally
+        window.firebaseAuth = auth;
         window.firebaseDB = db;
+        window.googleAuthProvider = googleProvider;
+
+        // Get current user UID (fallback to 'default' for backwards compatibility during migration)
+        function getCurrentUserId() {
+            const user = auth.currentUser;
+            return user ? user.uid : 'default';
+        }
 
         // Firestore helper functions
         window.firestore = {
             // Save task data to Firestore
             async saveTaskData(taskData, archivedTasks, settings) {
                 try {
-                    const docRef = doc(db, 'users', 'default');
+                    const userId = getCurrentUserId();
+                    const docRef = doc(db, 'users', userId);
                     await setDoc(docRef, {
                         taskData: taskData,
                         archivedTasks: archivedTasks,
@@ -6509,7 +6743,8 @@
             // Load task data from Firestore
             async loadTaskData() {
                 try {
-                    const docRef = doc(db, 'users', 'default');
+                    const userId = getCurrentUserId();
+                    const docRef = doc(db, 'users', userId);
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists()) {
                         console.log('Data loaded from Firestore');
@@ -6528,7 +6763,8 @@
             // Log time tracking data for long-term analytics
             async logTimeEntry(taskTitle, projectName, estimatedMinutes, actualMinutes) {
                 try {
-                    const timeLogsRef = collection(db, 'users', 'default', 'timeLogs');
+                    const userId = getCurrentUserId();
+                    const timeLogsRef = collection(db, 'users', userId, 'timeLogs');
                     await addDoc(timeLogsRef, {
                         taskTitle: taskTitle,
                         projectName: projectName || 'Uncategorized',
@@ -6548,7 +6784,8 @@
             // Get recent time logs for analytics
             async getTimeLogs(limitCount = 100) {
                 try {
-                    const timeLogsRef = collection(db, 'users', 'default', 'timeLogs');
+                    const userId = getCurrentUserId();
+                    const timeLogsRef = collection(db, 'users', userId, 'timeLogs');
                     const q = query(timeLogsRef, orderBy('completedAt', 'desc'), limit(limitCount));
                     const querySnapshot = await getDocs(q);
                     const logs = [];
@@ -6562,6 +6799,102 @@
                 }
             }
         };
+
+        // Authentication functions
+        window.handleEmailLogin = async function() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            
+            if (!email || !password) {
+                errorEl.textContent = 'Please enter both email and password';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                errorEl.classList.add('hidden');
+                await signInWithEmailAndPassword(auth, email, password);
+                // Auth state listener will handle UI update
+            } catch (error) {
+                errorEl.textContent = error.message || 'Failed to sign in. Please check your credentials.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        window.handleEmailSignup = async function() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            
+            if (!email || !password) {
+                errorEl.textContent = 'Please enter both email and password';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            if (password.length < 6) {
+                errorEl.textContent = 'Password must be at least 6 characters';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                errorEl.classList.add('hidden');
+                await createUserWithEmailAndPassword(auth, email, password);
+                // Auth state listener will handle UI update
+            } catch (error) {
+                errorEl.textContent = error.message || 'Failed to create account. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        window.handleGoogleLogin = async function() {
+            const errorEl = document.getElementById('loginError');
+            
+            try {
+                errorEl.classList.add('hidden');
+                await signInWithPopup(auth, googleProvider);
+                // Auth state listener will handle UI update
+            } catch (error) {
+                errorEl.textContent = error.message || 'Failed to sign in with Google. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        window.handleSignOut = async function() {
+            try {
+                await signOut(auth);
+                // Auth state listener will handle UI update
+            } catch (error) {
+                console.error('Error signing out:', error);
+                alert('Failed to sign out. Please try again.');
+            }
+        };
+
+        // Auth state listener - show/hide login page vs main app
+        onAuthStateChanged(auth, (user) => {
+            const loginPage = document.getElementById('loginPage');
+            const mainApp = document.getElementById('mainApp');
+            
+            if (user) {
+                // User is signed in
+                console.log('User signed in:', user.email);
+                loginPage.style.display = 'none';
+                mainApp.style.display = 'block';
+                // Signal that auth is ready and user is authenticated
+                window.firebaseAuthReady = true;
+                window.currentUser = user;
+                window.dispatchEvent(new Event('authStateChanged'));
+            } else {
+                // User is signed out
+                console.log('User signed out');
+                loginPage.style.display = 'flex';
+                mainApp.style.display = 'none';
+                window.firebaseAuthReady = true;
+                window.currentUser = null;
+            }
+        });
 
         // Signal that Firebase is ready
         window.firebaseReady = true;
@@ -6789,6 +7122,9 @@
             </div>
         </div>
     </div>
+
+    </div>
+    <!-- End Main App -->
 
     <script type="module" src="app.js"></script>
 </body>
