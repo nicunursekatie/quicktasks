@@ -6520,7 +6520,8 @@
                     }
                 } catch (error) {
                     console.error('Firestore load error:', error);
-                    return { success: false, error: error.message };
+                    // Re-throw the error so it can be handled properly (including permission errors)
+                    throw error;
                 }
             },
 

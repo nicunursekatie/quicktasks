@@ -5085,6 +5085,7 @@ async function loadFromFirestore() {
         updateSyncStatus('syncing');
         const result = await window.firestore.loadTaskData();
         if (result.success && result.data) {
+            console.log('Firestore data found, loading...');
             // Update local data with Firestore data
             if (result.data.taskData) taskData = result.data.taskData;
             if (result.data.archivedTasks) archivedTasks = result.data.archivedTasks;
@@ -5096,14 +5097,36 @@ async function loadFromFirestore() {
             localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
             localStorage.setItem('settings', JSON.stringify(settings));
             updateSyncStatus('synced');
+            console.log('Successfully loaded data from Firestore');
             return true;
         }
         updateSyncStatus('synced');
+        console.log('No data found in Firestore');
         return false;
     } catch (error) {
-        updateSyncStatus('error');
         console.error('Firestore load error:', error);
-        return false;
+        
+        // Check if it's a permission error (API not enabled)
+        if (error.code === 'permission-denied' || (error.message && error.message.includes('permission-denied'))) {
+            updateSyncStatus('error');
+            console.error('❌ Firestore API not enabled! Please enable it in Firebase Console.');
+            alert('⚠️ Firestore Sync Disabled\n\n' +
+                  'Cloud Firestore API needs to be enabled in your Firebase project.\n\n' +
+                  '1. Go to: https://console.firebase.google.com/project/quick-task-dashboard/settings/general\n' +
+                  '2. Or enable API here: https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=quick-task-dashboard\n\n' +
+                  'After enabling, wait a few minutes and refresh the page.');
+            return false;
+        } else if (error.code === 'unavailable' || (error.message && (error.message.includes('offline') || error.message.includes('Could not reach')))) {
+            // Temporary offline/unavailable - don't show error, just log warning
+            console.warn('Firestore temporarily unavailable (offline mode), using local data');
+            updateSyncStatus('synced');
+            return false;
+        } else {
+            // Other errors
+            updateSyncStatus('error');
+            console.error('Unexpected Firestore error:', error);
+            return false;
+        }
     }
 }
 
