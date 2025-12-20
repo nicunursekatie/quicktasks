@@ -456,16 +456,74 @@ function init() {
     initFirestoreSync();
 }
 
-// Initialize Firestore sync
-function initFirestoreSync() {
+// Initialize Firestore sync - load from Firestore on startup, then sync changes
+async function initFirestoreSync() {
+    const tryLoadFromFirestore = async () => {
+        // Try to load from Firestore first (this will update taskData, archivedTasks, settings globals)
+        const firestoreLoaded = await loadFromFirestore();
+        
+        if (firestoreLoaded) {
+            // Firestore data loaded successfully - data is already in global variables
+            // Reload from localStorage (which was updated by loadFromFirestore) to ensure consistency
+            const localTaskData = localStorage.getItem('taskData');
+            const localArchived = localStorage.getItem('archivedTasks');
+            const localSettings = localStorage.getItem('settings');
+            
+            if (localTaskData) taskData = JSON.parse(localTaskData);
+            if (localArchived) archivedTasks = JSON.parse(localArchived);
+            if (localSettings) settings = { ...settings, ...JSON.parse(localSettings) };
+            
+            console.log('Loaded data from Firestore, re-rendering...');
+            
+            // Re-render with Firestore data
+            renderTasks();
+            renderNotes();
+            updateStats();
+            updateProgress();
+        } else {
+            // No Firestore data - check if we have localStorage data to sync up
+            const localTaskData = localStorage.getItem('taskData');
+            if (localTaskData) {
+                try {
+                    const parsed = JSON.parse(localTaskData);
+                    // Check if we have actual user data (not just initialData)
+                    // If taskData has been modified from initial, sync it
+                    // Check if we have actual user data (more than just the default initialData structure)
+                    // We consider it user data if there are tasks or if it differs from initial structure
+                    const hasUserData = parsed && (
+                        (parsed.today && parsed.today.some(g => g.tasks && g.tasks.length > 0)) ||
+                        (parsed.longterm && parsed.longterm.some(g => g.tasks && g.tasks.length > 0))
+                    );
+                    if (hasUserData) {
+                        console.log('No Firestore data found, syncing local data to Firestore');
+                        // Sync existing localStorage data to Firestore
+                        syncToFirestore();
+                    }
+                } catch (e) {
+                    console.error('Error parsing localStorage data:', e);
+                }
+            }
+        }
+    };
+    
     // Wait for Firebase to be ready
-    if (window.firebaseReady) {
-        // Firebase already ready, sync now
-        syncToFirestore();
+    if (window.firebaseReady && window.firestore) {
+        // Firebase already ready, load now
+        await tryLoadFromFirestore();
     } else {
         // Wait for Firebase ready event
-        window.addEventListener('firebaseReady', () => {
-            syncToFirestore();
+        window.addEventListener('firebaseReady', async () => {
+            // Wait a bit for firestore to be fully initialized
+            let attempts = 0;
+            const checkFirestore = setInterval(() => {
+                if (window.firestore || attempts > 10) {
+                    clearInterval(checkFirestore);
+                    if (window.firestore) {
+                        tryLoadFromFirestore();
+                    }
+                }
+                attempts++;
+            }, 100);
         });
     }
 }
