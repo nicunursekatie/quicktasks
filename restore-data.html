@@ -37,125 +37,61 @@
         }
         button:hover { background: #45a049; }
         a { color: #007bff; }
-        .warning {
-            background: #fff3cd;
-            color: #856404;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
+        .step { margin: 10px 0; padding-left: 20px; }
+        textarea { width: 100%; height: 120px; margin-top: 15px; font-family: monospace; font-size: 11px; }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>Restore QuickTasks Data</h1>
 
-        <div class="warning">
-            <strong>Important:</strong> This page must be opened from the same domain as your app
-            (my-daily-dashboard.web.app) for localStorage to work. Click the button below to be
-            redirected there with your data.
-        </div>
-
         <div id="status" class="status info">
-            Ready to restore your data. Click the button below.
+            Click the button to copy the restore script to your clipboard.
         </div>
 
-        <button onclick="restoreData()">Restore My Data</button>
+        <button onclick="copyScript()">Copy Restore Script</button>
 
-        <p style="margin-top: 20px; color: #666; font-size: 14px;">
-            After restoring, you'll be redirected to your app with all your tasks restored.
-        </p>
+        <div style="margin-top: 20px;">
+            <strong>After copying, follow these steps:</strong>
+            <div class="step">1. Go to <a href="https://my-daily-dashboard.web.app" target="_blank">https://my-daily-dashboard.web.app</a></div>
+            <div class="step">2. Press <strong>F12</strong> to open Developer Tools</div>
+            <div class="step">3. Click the <strong>Console</strong> tab</div>
+            <div class="step">4. <strong>Paste</strong> (Ctrl+V) and press <strong>Enter</strong></div>
+            <div class="step">5. Your data will be restored!</div>
+        </div>
+
+        <textarea id="script" readonly></textarea>
     </div>
 
     <script>
-        const backupData = {
-            "settings": "{\"darkMode\":false,\"showCompleted\":true,\"openaiApiKey\":\"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\",\"aiProvider\":\"gemini\",\"geminiApiKey\":\"AIzaSyDrf2Dh0hqo5U36726CQVDszIOIMyggSms\",\"activeTask\":null,\"focusAlertInterval\":10,\"savedUrls\":[\"https://www.gmail.com\"]}",
-            "taskData": "{\"today\":[{\"groupName\":\"Quick Tasks\",\"tasks\":[{\"title\":\"remake our food safety guide for event toolkit emails\",\"completed\":false,\"estimatedMinutes\":120,\"emotionalWeight\":\"moderate\",\"zone\":\"nice\"},{\"title\":\"rewrite event toolkit email\",\"completed\":false,\"estimatedMinutes\":90,\"notes\":\"better email that a) lays out the preliminary questions right from the start- are you making 200 or more sandwiches? if not we aren't sending a driver and you need to make on a wednesday when our hosts are doing collections normally. 2) are you making sandwiches indoors? if not you're not making sandwiches, find a new activity 3) do you have a refrigerator with space to hold the ingredients for and then the assembled # of sandiwches you intend to make which must be >200. and a brief overview of our critical sandwich instructions: 2 pices of cheese, 3 pieces of meat on all sandwiches. cheese between the meat and bread. PBJs get pb on both sides and jelly on one. sandwiches go into a sandwich size ziploc bag and then al the snadiwches in ziplocs get stacked back inside the bag that the loaf of bread came out of so save your twistties.\",\"zone\":\"nice\"},{\"title\":\"Set up venmo charity\",\"completed\":false,\"estimatedMinutes\":40,\"zone\":\"nice\"},{\"title\":\"put together recipient survey feedback\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"make sure holding zone items are backed up somewhere external to the app\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"figure out why app is sneding out emails saying an event is still in process when it was actually successfully completed\",\"completed\":false,\"estimatedMinutes\":40,\"zone\":\"inbox\"},{\"title\":\"set up weekly email from google sheet to let people know what events are happening the following week\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"handbook type thing from notebooklm\",\"completed\":false,\"zone\":\"nice\"},{\"title\":\"pick a reborn doll\",\"completed\":false,\"zone\":\"inbox\",\"isBlocking\":true},{\"title\":\"make reddit posts asking if people want my help\",\"completed\":false,\"tags\":[\"urgent\"],\"zone\":\"inbox\"},{\"title\":\"sign up for prometheus and submit projects for website and app help\",\"completed\":false,\"status\":\"not-started\",\"createdAt\":\"2025-12-16T03:32:08.693Z\",\"dueDate\":\"2025-12-22\"},{\"title\":\"schedule call with ross\",\"completed\":false,\"status\":\"not-started\",\"createdAt\":\"2025-12-16T04:05:56.363Z\",\"zone\":\"critical\",\"isBlocking\":true}]},{\"groupName\":\"Review budget\",\"tasks\":[{\"title\":\"review financials spreadsheet from adam\",\"completed\":false,\"dueDate\":\"2025-11-23\",\"zone\":\"critical\",\"isBlocking\":true}]}],\"longterm\":[{\"groupName\":\"Quick Tasks\",\"tasks\":[{\"title\":\"get kids xmas presents ordered before its too late to get them in time!\",\"completed\":false,\"zone\":\"critical\",\"isBlocking\":true,\"status\":\"not-started\"},{\"title\":\"create driver survey\",\"completed\":false,\"zone\":\"critical\",\"isBlocking\":true,\"dueDate\":\"2025-12-16\",\"estimatedMinutes\":60,\"status\":\"not-started\",\"isUrgent\":true},{\"title\":\"AT&T Event: 10am in Buckhead\",\"completed\":true,\"zone\":\"inbox\",\"dueDate\":\"2025-12-16\",\"estimatedMinutes\":120,\"emotionalWeight\":\"heavy\",\"status\":\"not-started\",\"actualMinutes\":120},{\"title\":\"email new hosts a poll to schedule onboarding zoom\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"build the ultimate personalizable mom life organizing dashboard\",\"completed\":false,\"zone\":\"inbox\"}]},{\"groupName\":\"Strategic Comms Shift\",\"tasks\":[{\"title\":\"Move non-urgent comms and random ideas from group texts → app\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Design and implement a user-friendly UI for idea submission that captures all essential information.\",\"completed\":true,\"zone\":\"inbox\"},{\"title\":\"get people to sign for sms consent on the app\",\"completed\":false,\"status\":\"not-started\",\"createdAt\":\"2025-12-16T04:41:25.411Z\",\"zone\":\"inbox\"}]},{\"groupName\":\"Volunteer Speakers\",\"tasks\":[{\"title\":\"Onboard volunteer speakers into the app\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Display upcoming events clearly, making it easy for speaker volunteers to self-signup for events that they are available for\",\"completed\":false,\"zone\":\"inbox\"}]},{\"groupName\":\"Drivers\",\"tasks\":[{\"title\":\"Build out app driver functionalities:\\n\\n*   Pinpoint driver locations in database.\\n*   Showcase relevant events to drivers.\\n*   Enable self-enrollment for events.\\n*   Alert drivers about event updates.\",\"completed\":false,\"subtasks\":[{\"title\":\"Requires accurate driver location data in the database\",\"completed\":false}],\"zone\":\"inbox\"}]},{\"groupName\":\"Mobile + Urgent Comms Problem\",\"tasks\":[{\"title\":\"Long-term plan to onboard users with SMS consent for urgent items\",\"completed\":false,\"subtasks\":[{\"title\":\"Build targeted text system for urgent comms\",\"completed\":false},{\"title\":\"Possibly build separate mobile-optimized version or separate mobile app\",\"completed\":false}],\"zone\":\"inbox\"}]},{\"groupName\":\"finish TSP powerpoint on Gamma\",\"tasks\":[{\"title\":\"Review existing powerpoint\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Outline PowerPoint sections\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Draft content for each slide\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Create visuals and charts\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Review and refine content for clarity\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Incorporate TSP branding guidelines\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Proofread for errors\",\"completed\":false,\"zone\":\"inbox\"},{\"title\":\"Finalize and share PowerPoint\",\"completed\":false,\"zone\":\"inbox\"}]},{\"groupName\":\"fix TSP social media\",\"tasks\":[]}]}",
-            "notes": "[{\"id\":1764702684327,\"content\":\"\",\"tags\":[],\"createdAt\":\"2025-12-02T19:11:24.327Z\",\"updatedAt\":\"2025-12-02T19:11:24.327Z\"},{\"id\":1764525025730,\"content\":\"TSP Notes: \\n\\nJordan has to keep the spreadsheet or the app or the signup genius up to date- she can't be the only one who knows what's going on with drivers\",\"createdAt\":\"2025-11-30T17:50:25.730Z\",\"updatedAt\":\"2025-11-30T17:56:04.708Z\",\"tags\":[\"tsp\"]}]",
-            "archivedTasks": "[{\"title\":\"share budget google sheet with adam\",\"completed\":true,\"archivedDate\":\"2025-11-29T03:52:24.546Z\",\"originalProject\":\"Quick Tasks\",\"originalSection\":\"today\"},{\"title\":\"finish annual impact report for giving tuesday!\",\"completed\":true,\"archivedDate\":\"2025-11-29T03:52:24.546Z\",\"originalProject\":\"Quick Tasks\",\"originalSection\":\"today\"},{\"title\":\"Pull list of everyone who got the first GT email\",\"completed\":true,\"archivedDate\":\"2025-11-29T03:52:24.546Z\",\"originalProject\":\"Giving Tuesday\",\"originalSection\":\"today\"},{\"title\":\"Identify who has already donated\",\"completed\":true,\"archivedDate\":\"2025-11-29T03:52:24.546Z\",\"originalProject\":\"Giving Tuesday\",\"originalSection\":\"today\"},{\"title\":\"Remove donors from the next send\",\"completed\":true,\"archivedDate\":\"2025-11-29T03:52:24.546Z\",\"originalProject\":\"Giving Tuesday\",\"originalSection\":\"today\"},{\"title\":\"Finalize content for the second GT email\",\"completed\":true,\"archivedDate\":\"2025-11-29T03:52:24.546Z\",\"originalProject\":\"Giving Tuesday\",\"originalSection\":\"today\"},{\"title\":\"Open Alloy\",\"completed\":false,\"archivedDate\":\"2025-11-30T18:42:52.741Z\",\"originalProject\":\"Steve's PowerPoint\",\"originalSection\":\"today\",\"projectArchived\":true},{\"title\":\"Work on Steve's PowerPoint deck in Alloy\",\"completed\":false,\"archivedDate\":\"2025-11-30T18:42:52.741Z\",\"originalProject\":\"Steve's PowerPoint\",\"originalSection\":\"today\",\"projectArchived\":true},{\"title\":\"Review the Alloy folder for materials relevant to Steve's deck\",\"completed\":false,\"archivedDate\":\"2025-11-30T18:42:52.741Z\",\"originalProject\":\"Steve's PowerPoint\",\"originalSection\":\"today\",\"projectArchived\":true},{\"title\":\"[Project: Steve's PowerPoint]\",\"isProjectMarker\":true,\"archivedDate\":\"2025-11-30T18:42:52.741Z\",\"originalProject\":\"Steve's PowerPoint\",\"originalSection\":\"today\",\"taskCount\":3,\"completedCount\":0},{\"title\":\"set up paypal nonprofit\",\"completed\":true,\"zone\":\"inbox\",\"archivedDate\":\"2025-12-16T03:30:57.226Z\",\"originalProject\":\"Quick Tasks\",\"originalSection\":\"today\"},{\"title\":\"Call Jean Goodwin and get her set up on the app\",\"completed\":true,\"estimatedMinutes\":40,\"zone\":\"inbox\",\"archivedDate\":\"2025-12-16T03:30:57.226Z\",\"originalProject\":\"Quick Tasks\",\"originalSection\":\"today\"},{\"title\":\"decide with TSP about using prometheus\",\"completed\":true,\"zone\":\"inbox\",\"archivedDate\":\"2025-12-16T04:38:52.451Z\",\"originalProject\":\"Quick Tasks\",\"originalSection\":\"today\"},{\"title\":\"look on catchafire for help with app etc\",\"completed\":true,\"zone\":\"inbox\",\"archivedDate\":\"2025-12-16T04:38:52.451Z\",\"originalProject\":\"Quick Tasks\",\"originalSection\":\"today\"},{\"title\":\"fill out information for reynolds company donation thing\",\"completed\":true,\"dueDate\":\"2025-12-12\",\"status\":\"in-progress\",\"notes\":\"need bank account info and all that shit\",\"zone\":\"inbox\",\"archivedDate\":\"2025-12-16T04:38:52.451Z\",\"originalProject\":\"Quick Tasks\",\"originalSection\":\"today\"},{\"title\":\"Clarify driver list priorities with Jordan; emphasize location data for app tools, not agreement status.\",\"completed\":true,\"subtasks\":[{\"title\":\"Clarify: update driver list not for agreements, but to fill in driver locations to power app tools\",\"completed\":false}],\"zone\":\"inbox\",\"archivedDate\":\"2025-12-16T04:38:52.451Z\",\"originalProject\":\"Jordan Clarification\",\"originalSection\":\"longterm\"}]",
-            "selectedCalendarIds": "[\"kenig.ka@gmail.com\",\"en.usa#holiday@group.v.calendar.google.com\",\"4fe09069000e1b9bad8ccd640f7ecc437996dff31be1a71eeef43ab92136ef30@group.calendar.google.com\",\"m8cir2m7saquu6adjen21u1dvo@group.calendar.google.com\",\"e1gm2l4h9hr7birn7fenbptia4@group.calendar.google.com\",\"9n8gv606c4lqfhk04t51ckurrk@group.calendar.google.com\",\"family06125223474909997375@group.calendar.google.com\",\"katie@thesandwichproject.org\",\"1f24d2ab9d859e3ff84c72ee1ee809603be67073fe2fd58e95cd3a1a90f4b05a@group.calendar.google.com\",\"jqimnb9i11p75blsihm80qraiv3qh1bq@import.calendar.google.com\",\"0813cd575e262fbc020927f88f1fd5a1906f5bd9b2f27a66a4920235939e5ff4@group.calendar.google.com\",\"katielong2316@gmail.com\"]",
-            "zonesMigrated": "true"
-        };
+        const restoreScript = `// Restore QuickTasks Data - Paste this in Console at my-daily-dashboard.web.app
+localStorage.setItem("settings", '{"darkMode":false,"showCompleted":true,"openaiApiKey":"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","aiProvider":"gemini","geminiApiKey":"AIzaSyDrf2Dh0hqo5U36726CQVDszIOIMyggSms","activeTask":null,"focusAlertInterval":10,"savedUrls":["https://www.gmail.com"]}');
 
-        function restoreData() {
+localStorage.setItem("taskData", '{"today":[{"groupName":"Quick Tasks","tasks":[{"title":"remake our food safety guide for event toolkit emails","completed":false,"estimatedMinutes":120,"emotionalWeight":"moderate","zone":"nice"},{"title":"rewrite event toolkit email","completed":false,"estimatedMinutes":90,"notes":"better email that a) lays out the preliminary questions right from the start- are you making 200 or more sandwiches? if not we aren\\'t sending a driver and you need to make on a wednesday when our hosts are doing collections normally. 2) are you making sandwiches indoors? if not you\\'re not making sandwiches, find a new activity 3) do you have a refrigerator with space to hold the ingredients for and then the assembled # of sandiwches you intend to make which must be >200. and a brief overview of our critical sandwich instructions: 2 pices of cheese, 3 pieces of meat on all sandwiches. cheese between the meat and bread. PBJs get pb on both sides and jelly on one. sandwiches go into a sandwich size ziploc bag and then al the snadiwches in ziplocs get stacked back inside the bag that the loaf of bread came out of so save your twistties.","zone":"nice"},{"title":"Set up venmo charity","completed":false,"estimatedMinutes":40,"zone":"nice"},{"title":"put together recipient survey feedback","completed":false,"zone":"inbox"},{"title":"make sure holding zone items are backed up somewhere external to the app","completed":false,"zone":"inbox"},{"title":"figure out why app is sneding out emails saying an event is still in process when it was actually successfully completed","completed":false,"estimatedMinutes":40,"zone":"inbox"},{"title":"set up weekly email from google sheet to let people know what events are happening the following week","completed":false,"zone":"inbox"},{"title":"handbook type thing from notebooklm","completed":false,"zone":"nice"},{"title":"pick a reborn doll","completed":false,"zone":"inbox","isBlocking":true},{"title":"make reddit posts asking if people want my help","completed":false,"tags":["urgent"],"zone":"inbox"},{"title":"sign up for prometheus and submit projects for website and app help","completed":false,"status":"not-started","createdAt":"2025-12-16T03:32:08.693Z","dueDate":"2025-12-22"},{"title":"schedule call with ross","completed":false,"status":"not-started","createdAt":"2025-12-16T04:05:56.363Z","zone":"critical","isBlocking":true}]},{"groupName":"Review budget","tasks":[{"title":"review financials spreadsheet from adam","completed":false,"dueDate":"2025-11-23","zone":"critical","isBlocking":true}]}],"longterm":[{"groupName":"Quick Tasks","tasks":[{"title":"get kids xmas presents ordered before its too late to get them in time!","completed":false,"zone":"critical","isBlocking":true,"status":"not-started"},{"title":"create driver survey","completed":false,"zone":"critical","isBlocking":true,"dueDate":"2025-12-16","estimatedMinutes":60,"status":"not-started","isUrgent":true},{"title":"AT&T Event: 10am in Buckhead","completed":true,"zone":"inbox","dueDate":"2025-12-16","estimatedMinutes":120,"emotionalWeight":"heavy","status":"not-started","actualMinutes":120},{"title":"email new hosts a poll to schedule onboarding zoom","completed":false,"zone":"inbox"},{"title":"build the ultimate personalizable mom life organizing dashboard","completed":false,"zone":"inbox"}]},{"groupName":"Strategic Comms Shift","tasks":[{"title":"Move non-urgent comms and random ideas from group texts → app","completed":false,"zone":"inbox"},{"title":"Design and implement a user-friendly UI for idea submission that captures all essential information.","completed":true,"zone":"inbox"},{"title":"get people to sign for sms consent on the app","completed":false,"status":"not-started","createdAt":"2025-12-16T04:41:25.411Z","zone":"inbox"}]},{"groupName":"Volunteer Speakers","tasks":[{"title":"Onboard volunteer speakers into the app","completed":false,"zone":"inbox"},{"title":"Display upcoming events clearly, making it easy for speaker volunteers to self-signup for events that they are available for","completed":false,"zone":"inbox"}]},{"groupName":"Drivers","tasks":[{"title":"Build out app driver functionalities:\\n\\n*   Pinpoint driver locations in database.\\n*   Showcase relevant events to drivers.\\n*   Enable self-enrollment for events.\\n*   Alert drivers about event updates.","completed":false,"subtasks":[{"title":"Requires accurate driver location data in the database","completed":false}],"zone":"inbox"}]},{"groupName":"Mobile + Urgent Comms Problem","tasks":[{"title":"Long-term plan to onboard users with SMS consent for urgent items","completed":false,"subtasks":[{"title":"Build targeted text system for urgent comms","completed":false},{"title":"Possibly build separate mobile-optimized version or separate mobile app","completed":false}],"zone":"inbox"}]},{"groupName":"finish TSP powerpoint on Gamma","tasks":[{"title":"Review existing powerpoint","completed":false,"zone":"inbox"},{"title":"Outline PowerPoint sections","completed":false,"zone":"inbox"},{"title":"Draft content for each slide","completed":false,"zone":"inbox"},{"title":"Create visuals and charts","completed":false,"zone":"inbox"},{"title":"Review and refine content for clarity","completed":false,"zone":"inbox"},{"title":"Incorporate TSP branding guidelines","completed":false,"zone":"inbox"},{"title":"Proofread for errors","completed":false,"zone":"inbox"},{"title":"Finalize and share PowerPoint","completed":false,"zone":"inbox"}]},{"groupName":"fix TSP social media","tasks":[]}]}');
+
+localStorage.setItem("notes", '[{"id":1764702684327,"content":"","tags":[],"createdAt":"2025-12-02T19:11:24.327Z","updatedAt":"2025-12-02T19:11:24.327Z"},{"id":1764525025730,"content":"TSP Notes: \\n\\nJordan has to keep the spreadsheet or the app or the signup genius up to date- she can\\'t be the only one who knows what\\'s going on with drivers","createdAt":"2025-11-30T17:50:25.730Z","updatedAt":"2025-11-30T17:56:04.708Z","tags":["tsp"]}]');
+
+localStorage.setItem("archivedTasks", '[{"title":"share budget google sheet with adam","completed":true,"archivedDate":"2025-11-29T03:52:24.546Z","originalProject":"Quick Tasks","originalSection":"today"},{"title":"finish annual impact report for giving tuesday!","completed":true,"archivedDate":"2025-11-29T03:52:24.546Z","originalProject":"Quick Tasks","originalSection":"today"},{"title":"Pull list of everyone who got the first GT email","completed":true,"archivedDate":"2025-11-29T03:52:24.546Z","originalProject":"Giving Tuesday","originalSection":"today"},{"title":"Identify who has already donated","completed":true,"archivedDate":"2025-11-29T03:52:24.546Z","originalProject":"Giving Tuesday","originalSection":"today"},{"title":"Remove donors from the next send","completed":true,"archivedDate":"2025-11-29T03:52:24.546Z","originalProject":"Giving Tuesday","originalSection":"today"},{"title":"Finalize content for the second GT email","completed":true,"archivedDate":"2025-11-29T03:52:24.546Z","originalProject":"Giving Tuesday","originalSection":"today"},{"title":"Open Alloy","completed":false,"archivedDate":"2025-11-30T18:42:52.741Z","originalProject":"Steve\\'s PowerPoint","originalSection":"today","projectArchived":true},{"title":"Work on Steve\\'s PowerPoint deck in Alloy","completed":false,"archivedDate":"2025-11-30T18:42:52.741Z","originalProject":"Steve\\'s PowerPoint","originalSection":"today","projectArchived":true},{"title":"Review the Alloy folder for materials relevant to Steve\\'s deck","completed":false,"archivedDate":"2025-11-30T18:42:52.741Z","originalProject":"Steve\\'s PowerPoint","originalSection":"today","projectArchived":true},{"title":"[Project: Steve\\'s PowerPoint]","isProjectMarker":true,"archivedDate":"2025-11-30T18:42:52.741Z","originalProject":"Steve\\'s PowerPoint","originalSection":"today","taskCount":3,"completedCount":0},{"title":"set up paypal nonprofit","completed":true,"zone":"inbox","archivedDate":"2025-12-16T03:30:57.226Z","originalProject":"Quick Tasks","originalSection":"today"},{"title":"Call Jean Goodwin and get her set up on the app","completed":true,"estimatedMinutes":40,"zone":"inbox","archivedDate":"2025-12-16T03:30:57.226Z","originalProject":"Quick Tasks","originalSection":"today"},{"title":"decide with TSP about using prometheus","completed":true,"zone":"inbox","archivedDate":"2025-12-16T04:38:52.451Z","originalProject":"Quick Tasks","originalSection":"today"},{"title":"look on catchafire for help with app etc","completed":true,"zone":"inbox","archivedDate":"2025-12-16T04:38:52.451Z","originalProject":"Quick Tasks","originalSection":"today"},{"title":"fill out information for reynolds company donation thing","completed":true,"dueDate":"2025-12-12","status":"in-progress","notes":"need bank account info and all that shit","zone":"inbox","archivedDate":"2025-12-16T04:38:52.451Z","originalProject":"Quick Tasks","originalSection":"today"},{"title":"Clarify driver list priorities with Jordan; emphasize location data for app tools, not agreement status.","completed":true,"subtasks":[{"title":"Clarify: update driver list not for agreements, but to fill in driver locations to power app tools","completed":false}],"zone":"inbox","archivedDate":"2025-12-16T04:38:52.451Z","originalProject":"Jordan Clarification","originalSection":"longterm"}]');
+
+localStorage.setItem("selectedCalendarIds", '["kenig.ka@gmail.com","en.usa#holiday@group.v.calendar.google.com","4fe09069000e1b9bad8ccd640f7ecc437996dff31be1a71eeef43ab92136ef30@group.calendar.google.com","m8cir2m7saquu6adjen21u1dvo@group.calendar.google.com","e1gm2l4h9hr7birn7fenbptia4@group.calendar.google.com","9n8gv606c4lqfhk04t51ckurrk@group.calendar.google.com","family06125223474909997375@group.calendar.google.com","katie@thesandwichproject.org","1f24d2ab9d859e3ff84c72ee1ee809603be67073fe2fd58e95cd3a1a90f4b05a@group.calendar.google.com","jqimnb9i11p75blsihm80qraiv3qh1bq@import.calendar.google.com","0813cd575e262fbc020927f88f1fd5a1906f5bd9b2f27a66a4920235939e5ff4@group.calendar.google.com","katielong2316@gmail.com"]');
+
+localStorage.setItem("zonesMigrated", "true");
+
+console.log("Data restored! Reloading...");
+location.reload();`;
+
+        document.getElementById('script').value = restoreScript;
+
+        function copyScript() {
             const statusEl = document.getElementById('status');
-
-            // Check if we're on the correct domain
-            if (window.location.hostname === 'my-daily-dashboard.web.app') {
-                try {
-                    // Restore all data to localStorage
-                    for (const [key, value] of Object.entries(backupData)) {
-                        localStorage.setItem(key, value);
-                    }
-
-                    statusEl.className = 'status success';
-                    statusEl.innerHTML = '<strong>Success!</strong> Your data has been restored. Reloading the app...';
-
-                    // Reload to show the restored data
-                    setTimeout(() => {
-                        window.location.href = 'https://my-daily-dashboard.web.app';
-                    }, 1500);
-                } catch (e) {
-                    statusEl.className = 'status error';
-                    statusEl.innerHTML = '<strong>Error:</strong> ' + e.message;
-                }
-            } else {
-                // We need to redirect to the app domain with the data
-                // Encode data in URL hash (localStorage can't be set cross-domain)
-                const encodedData = encodeURIComponent(JSON.stringify(backupData));
-
-                statusEl.className = 'status info';
-                statusEl.innerHTML = 'Redirecting to app domain to restore data...';
-
-                // Store in sessionStorage for the redirect page
-                try {
-                    sessionStorage.setItem('restoreData', JSON.stringify(backupData));
-                } catch(e) {}
-
-                // Copy to clipboard as backup
-                const restoreScript = `
-// Paste this in the browser console at https://my-daily-dashboard.web.app
-const data = ${JSON.stringify(backupData, null, 2)};
-for (const [key, value] of Object.entries(data)) {
-    localStorage.setItem(key, value);
-}
-console.log('Data restored! Reloading...');
-location.reload();
-`;
-
-                navigator.clipboard.writeText(restoreScript).then(() => {
-                    statusEl.className = 'status success';
-                    statusEl.innerHTML = `
-                        <strong>Restore script copied to clipboard!</strong><br><br>
-                        Now:<br>
-                        1. Go to <a href="https://my-daily-dashboard.web.app" target="_blank">https://my-daily-dashboard.web.app</a><br>
-                        2. Press F12 to open Developer Tools<br>
-                        3. Go to the Console tab<br>
-                        4. Paste (Ctrl+V) and press Enter<br><br>
-                        Your data will be restored!
-                    `;
-                }).catch(() => {
-                    // Clipboard failed, show manual instructions
-                    statusEl.className = 'status info';
-                    statusEl.innerHTML = `
-                        <strong>Manual restore needed:</strong><br><br>
-                        1. Go to <a href="https://my-daily-dashboard.web.app" target="_blank">https://my-daily-dashboard.web.app</a><br>
-                        2. Press F12 to open Developer Tools<br>
-                        3. Go to Console tab<br>
-                        4. Copy and paste the script from the textarea below, then press Enter
-                    `;
-
-                    const textarea = document.createElement('textarea');
-                    textarea.value = restoreScript;
-                    textarea.style.width = '100%';
-                    textarea.style.height = '150px';
-                    textarea.style.marginTop = '10px';
-                    textarea.style.fontFamily = 'monospace';
-                    textarea.style.fontSize = '11px';
-                    statusEl.appendChild(textarea);
-                });
-            }
+            navigator.clipboard.writeText(restoreScript).then(() => {
+                statusEl.className = 'status success';
+                statusEl.innerHTML = '<strong>Copied!</strong> Now go to your app and paste in the Console (F12).';
+            }).catch(() => {
+                statusEl.className = 'status error';
+                statusEl.innerHTML = 'Could not copy. Please manually select and copy the script from the textarea below.';
+                document.getElementById('script').select();
+            });
         }
     </script>
 </body>

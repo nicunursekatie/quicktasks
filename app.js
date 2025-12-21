@@ -121,6 +121,10 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
 let currentUser = null;
 let unsubscribe = null;
 
+// AI Chat state
+let chatHistory = [];
+let chatOpen = false;
+
 // Focus mode timer
 let focusTimer = null;
 let focusAlertInterval = null;
@@ -6210,5 +6214,392 @@ window.closeDailyDigest = function() {
     document.getElementById('dailyDigestModal').classList.remove('active');
 }
 
+// ============================================
+// AI CHAT FUNCTIONS
+// ============================================
+
+// Toggle chat panel
+window.toggleChat = function() {
+    const panel = document.getElementById('chatPanel');
+    const bubble = document.getElementById('chatBubble');
+    if (!panel || !bubble) return;
+
+    chatOpen = !chatOpen;
+    panel.classList.toggle('open', chatOpen);
+    bubble.classList.toggle('hidden', chatOpen);
+
+    if (chatOpen) {
+        // Focus input
+        const input = document.getElementById('chatInput');
+        if (input) input.focus();
+
+        // Show welcome message if first time
+        if (chatHistory.length === 0) {
+            addAssistantMessage("Hi! I can see all your tasks, calendar, and notes. Ask me to:\n\n• Plan your day\n• Break down a task\n• Check what's overdue\n• Prioritize your work\n• Add new tasks\n\nWhat would you like help with?");
+        }
+    }
+}
+
+// Handle keyboard in chat input
+window.handleChatKeydown = function(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChatMessage();
+    }
+}
+
+// Add user message to chat
+function addUserMessage(text) {
+    chatHistory.push({ role: 'user', content: text, timestamp: new Date().toISOString() });
+    renderChatMessages();
+    saveChatHistory();
+}
+
+// Add assistant message to chat
+function addAssistantMessage(text) {
+    chatHistory.push({ role: 'assistant', content: text, timestamp: new Date().toISOString() });
+    renderChatMessages();
+    saveChatHistory();
+}
+
+// Render chat messages
+function renderChatMessages() {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+
+    container.innerHTML = chatHistory.map(msg => {
+        const content = msg.content
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        return `<div class="chat-message ${msg.role}">${content}</div>`;
+    }).join('');
+
+    container.scrollTop = container.scrollHeight;
+}
+
+// Save chat history to localStorage and Firestore
+function saveChatHistory() {
+    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+
+    // Also save to Firestore if available (async, don't await)
+    if (window.firestore && window.firestore.saveChatHistory) {
+        window.firestore.saveChatHistory(chatHistory).catch(err => {
+            console.warn('Failed to sync chat to Firestore:', err);
+        });
+    }
+}
+
+// Load chat history
+function loadChatHistory() {
+    try {
+        const saved = localStorage.getItem('chatHistory');
+        if (saved) {
+            chatHistory = JSON.parse(saved);
+        }
+    } catch (e) {
+        console.error('Error loading chat history:', e);
+        chatHistory = [];
+    }
+}
+
+// Clear chat history
+window.clearChatHistory = function() {
+    if (confirm('Clear all chat history?')) {
+        chatHistory = [];
+        localStorage.removeItem('chatHistory');
+        renderChatMessages();
+        if (window.firestore && window.firestore.saveChatHistory) {
+            window.firestore.saveChatHistory([]);
+        }
+    }
+}
+
+// Build context about current app state for AI
+function buildChatContext() {
+    const digest = generateDailyDigest();
+    const todayEvents = typeof getEventsForToday === 'function' ? getEventsForToday() : [];
+    const tomorrowEvents = typeof getEventsForTomorrow === 'function' ? getEventsForTomorrow() : [];
+
+    let context = `## Current App State\n\n`;
+    context += `**Today:** ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}\n\n`;
+
+    // Summary stats
+    context += `### Task Summary\n`;
+    context += `- Total active tasks: ${digest.summary.totalActive}\n`;
+    context += `- Overdue: ${digest.summary.overdueCount}\n`;
+    context += `- Due tomorrow: ${digest.summary.dueTomorrowCount}\n`;
+    context += `- Needs attention: ${digest.summary.needsAttentionCount}\n\n`;
+
+    // Calendar events
+    if (todayEvents.length > 0) {
+        context += `### Today's Calendar\n`;
+        todayEvents.forEach(e => {
+            context += `- ${e.startTime || ''} ${e.title}${e.location ? ' @ ' + e.location : ''}\n`;
+        });
+        context += '\n';
+    }
+
+    if (tomorrowEvents.length > 0) {
+        context += `### Tomorrow's Calendar\n`;
+        tomorrowEvents.forEach(e => {
+            context += `- ${e.startTime || ''} ${e.title}\n`;
+        });
+        context += '\n';
+    }
+
+    // Critical/blocking tasks
+    const criticalTasks = typeof getTasksForCriticalZone === 'function' ? getTasksForCriticalZone() : [];
+    if (criticalTasks.length > 0) {
+        context += `### Critical/Blocking Tasks\n`;
+        criticalTasks.forEach(t => {
+            context += `- ${t.title} (${t.groupName})`;
+            if (t.dueDate) context += ` - due ${t.dueDate}`;
+            context += '\n';
+        });
+        context += '\n';
+    }
+
+    // Overdue tasks
+    if (digest.overdue && digest.overdue.length > 0) {
+        context += `### Overdue Tasks\n`;
+        digest.overdue.forEach(t => {
+            context += `- ${t.title} (due ${t.dueDate}) - ${t.groupName}\n`;
+        });
+        context += '\n';
+    }
+
+    // All tasks by project
+    context += `### All Tasks by Project\n`;
+    const allTasks = getAllTasksWithMetadata();
+    const byProject = {};
+    allTasks.forEach(t => {
+        if (!byProject[t.groupName]) byProject[t.groupName] = [];
+        byProject[t.groupName].push(t);
+    });
+
+    Object.entries(byProject).forEach(([proj, tasks]) => {
+        const completed = tasks.filter(t => t.completed).length;
+        context += `\n**${proj}** (${completed}/${tasks.length} done)\n`;
+        tasks.forEach(t => {
+            let info = `- [${t.completed ? 'x' : ' '}] ${t.title}`;
+            if (t.dueDate) info += ` (due ${t.dueDate})`;
+            if (t.estimatedMinutes) info += ` [${t.estimatedMinutes}min]`;
+            if (t.zone && t.zone !== 'inbox') info += ` {${t.zone}}`;
+            if (t.isBlocking) info += ` 👤blocking`;
+            if (t.isUrgent) info += ` 🚨urgent`;
+            context += info + '\n';
+
+            // Include subtasks
+            if (t.subtasks && t.subtasks.length > 0) {
+                t.subtasks.forEach(st => {
+                    context += `  - [${st.completed ? 'x' : ' '}] ${st.title}\n`;
+                });
+            }
+        });
+    });
+
+    // Notes summary
+    if (notes && notes.length > 0) {
+        context += `\n### Recent Notes\n`;
+        notes.slice(0, 5).forEach(n => {
+            if (n.content) {
+                const preview = n.content.substring(0, 150).replace(/\n/g, ' ');
+                context += `- ${preview}${n.content.length > 150 ? '...' : ''}\n`;
+            }
+        });
+    }
+
+    return context;
+}
+
+// Send message to AI
+window.sendChatMessage = async function() {
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSendBtn');
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    // Clear input and disable button
+    input.value = '';
+    if (sendBtn) sendBtn.disabled = true;
+
+    // Add user message
+    addUserMessage(message);
+
+    // Show typing indicator
+    const container = document.getElementById('chatMessages');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message assistant typing';
+    typingDiv.textContent = 'Thinking...';
+    container.appendChild(typingDiv);
+    container.scrollTop = container.scrollHeight;
+
+    // Build context
+    const context = buildChatContext();
+
+    const systemPrompt = `You are a helpful, friendly productivity assistant integrated into a task management app. You have full access to the user's tasks, calendar events, and notes.
+
+${context}
+
+## Your Capabilities
+1. Help prioritize and plan the day based on deadlines, blocking tasks, and calendar
+2. Break down overwhelming tasks into smaller, actionable steps
+3. Estimate time for tasks based on complexity
+4. Warn about upcoming deadlines and overdue items
+5. Suggest what to work on next based on priorities
+6. Create new tasks or subtasks when asked
+
+## Creating Tasks
+When the user asks you to add tasks or break something down, include a JSON block in your response:
+
+For new tasks:
+\`\`\`json
+{"action": "addTasks", "tasks": [{"title": "Task name", "project": "Project Name", "section": "today", "zone": "inbox"}]}
+\`\`\`
+
+For subtasks on an existing task:
+\`\`\`json
+{"action": "addSubtasks", "parentTask": "partial task title to match", "subtasks": ["Step 1", "Step 2", "Step 3"]}
+\`\`\`
+
+Valid zones: critical, focus, inbox, nice, today, tomorrow, week
+Valid sections: today, longterm
+
+## Response Style
+- Be concise and actionable
+- Use bullet points for lists
+- Be encouraging and ADHD-friendly (acknowledge when things feel overwhelming)
+- Break things into small, clear steps
+- If something is overdue, be supportive not judgmental`;
+
+    try {
+        // Get recent conversation for context (last 6 messages)
+        const recentMessages = chatHistory.slice(-6);
+
+        const response = await callAI(systemPrompt, message);
+
+        // Remove typing indicator
+        if (typingDiv.parentNode) {
+            typingDiv.remove();
+        }
+
+        if (response) {
+            // Check for action JSON in response
+            const actionMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
+            if (actionMatch) {
+                try {
+                    const action = JSON.parse(actionMatch[1]);
+                    await handleChatAction(action, response);
+                } catch (parseErr) {
+                    // JSON parse failed, just show the response
+                    addAssistantMessage(response);
+                }
+            } else {
+                addAssistantMessage(response);
+            }
+        } else {
+            addAssistantMessage("Sorry, I couldn't get a response. Please check your AI API key in Settings (gear icon).");
+        }
+    } catch (error) {
+        console.error('Chat AI error:', error);
+        if (typingDiv.parentNode) {
+            typingDiv.remove();
+        }
+        addAssistantMessage(`Error: ${error.message}\n\nMake sure you have an API key configured in Settings.`);
+    }
+
+    // Re-enable send button
+    if (sendBtn) sendBtn.disabled = false;
+}
+
+// Handle AI action (add tasks, subtasks)
+async function handleChatAction(action, fullResponse) {
+    // Show the text part of response first (without the JSON block)
+    const textPart = fullResponse.replace(/```json[\s\S]*?```/g, '').trim();
+    if (textPart) {
+        addAssistantMessage(textPart);
+    }
+
+    if (action.action === 'addTasks' && action.tasks && action.tasks.length > 0) {
+        const taskList = action.tasks.map(t => `• ${t.title}`).join('\n');
+        const confirmed = await showConfirmModal(
+            '➕ Add Tasks?',
+            `Add ${action.tasks.length} task(s)?\n\n${taskList}`
+        );
+
+        if (confirmed) {
+            let addedCount = 0;
+            action.tasks.forEach(t => {
+                const section = t.section || 'today';
+                const projectName = t.project || 'Quick Tasks';
+
+                // Find or create project group
+                let groupIndex = taskData[section].findIndex(g => g.groupName === projectName);
+                if (groupIndex === -1) {
+                    taskData[section].push({ groupName: projectName, tasks: [] });
+                    groupIndex = taskData[section].length - 1;
+                }
+
+                // Add the task
+                taskData[section][groupIndex].tasks.push({
+                    title: t.title,
+                    completed: false,
+                    zone: t.zone || 'inbox',
+                    status: 'not-started',
+                    createdAt: new Date().toISOString(),
+                    estimatedMinutes: t.estimatedMinutes || null,
+                    dueDate: t.dueDate || null
+                });
+                addedCount++;
+            });
+
+            saveData();
+            renderTasks();
+            addAssistantMessage(`✅ Added ${addedCount} task(s)!`);
+        } else {
+            addAssistantMessage("No problem, I didn't add anything.");
+        }
+    }
+
+    if (action.action === 'addSubtasks' && action.subtasks && action.subtasks.length > 0) {
+        // Find the parent task
+        const allTasks = getAllTasksWithMetadata();
+        const searchTerm = action.parentTask.toLowerCase();
+        const parent = allTasks.find(t =>
+            t.title.toLowerCase().includes(searchTerm) && !t.completed
+        );
+
+        if (parent) {
+            const subtaskList = action.subtasks.map(s => `• ${s}`).join('\n');
+            const confirmed = await showConfirmModal(
+                '➕ Add Subtasks?',
+                `Add ${action.subtasks.length} subtasks to "${parent.title}"?\n\n${subtaskList}`
+            );
+
+            if (confirmed) {
+                const task = taskData[parent.section][parent.groupIndex].tasks[parent.taskIndex];
+                if (!task.subtasks) task.subtasks = [];
+
+                action.subtasks.forEach(s => {
+                    task.subtasks.push({ title: s, completed: false });
+                });
+
+                saveData();
+                renderTasks();
+                addAssistantMessage(`✅ Added ${action.subtasks.length} subtasks to "${parent.title}"!`);
+            } else {
+                addAssistantMessage("No problem, I didn't add anything.");
+            }
+        } else {
+            addAssistantMessage(`I couldn't find a task matching "${action.parentTask}". Could you be more specific about which task you want to break down?`);
+        }
+    }
+}
+
 // Initialize on load
+loadChatHistory();
 init();
