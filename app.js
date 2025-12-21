@@ -2012,10 +2012,10 @@ window.submitNewTask = function() {
         const [projectSection, projectIndex] = projectValue.split('-');
         taskData[projectSection][parseInt(projectIndex)].tasks.push(newTask);
     } else {
-        // Add to "Quick Tasks" group or create it
-        let quickGroup = taskData[section].find(g => g.groupName === 'Quick Tasks');
+        // Add to "Someone Else is Relying on Me" group or create it
+        let quickGroup = taskData[section].find(g => g.groupName === 'Someone Else is Relying on Me');
         if (!quickGroup) {
-            quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+            quickGroup = { groupName: 'Someone Else is Relying on Me', tasks: [] };
             taskData[section].unshift(quickGroup);
         }
         quickGroup.tasks.push(newTask);
@@ -2163,10 +2163,10 @@ window.submitTaskFollowUp = function() {
             if (matchingGroupIndex !== -1) {
                 targetGroupIndex = matchingGroupIndex;
             } else {
-                // If group doesn't exist in new section, use "Quick Tasks" or first group
-                let quickGroup = taskData[followUpSection].find(g => g.groupName === 'Quick Tasks');
+                // If group doesn't exist in new section, use "Someone Else is Relying on Me" or first group
+                let quickGroup = taskData[followUpSection].find(g => g.groupName === 'Someone Else is Relying on Me');
                 if (!quickGroup) {
-                    quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+                    quickGroup = { groupName: 'Someone Else is Relying on Me', tasks: [] };
                     taskData[followUpSection].unshift(quickGroup);
                 }
                 targetGroupIndex = taskData[followUpSection].indexOf(quickGroup);
@@ -2181,7 +2181,7 @@ window.submitTaskFollowUp = function() {
                 targetGroupIndex = 0;
             } else {
                 // Create a default group if section is empty
-                taskData[followUpSection].push({ groupName: 'Quick Tasks', tasks: [] });
+                taskData[followUpSection].push({ groupName: 'Someone Else is Relying on Me', tasks: [] });
                 targetGroupIndex = 0;
             }
         }
@@ -3160,10 +3160,10 @@ window.moveTask = function(fromSection, groupIndex, taskIndex) {
         taskData[fromSection].splice(groupIndex, 1);
     }
 
-    // Add to "Quick Tasks" group in target section or create it
-    let quickGroup = taskData[toSection].find(g => g.groupName === 'Quick Tasks');
+    // Add to "Someone Else is Relying on Me" group in target section or create it
+    let quickGroup = taskData[toSection].find(g => g.groupName === 'Someone Else is Relying on Me');
     if (!quickGroup) {
-        quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+        quickGroup = { groupName: 'Someone Else is Relying on Me', tasks: [] };
         taskData[toSection].unshift(quickGroup);
     }
 
@@ -3714,10 +3714,10 @@ window.handleBrainDump = function(event) {
             zone: 'inbox'
         };
 
-        // Add to "Quick Tasks" group in longterm section (or create it)
-        let quickGroup = taskData.longterm.find(g => g.groupName === 'Quick Tasks');
+        // Add to "Someone Else is Relying on Me" group in longterm section (or create it)
+        let quickGroup = taskData.longterm.find(g => g.groupName === 'Someone Else is Relying on Me');
         if (!quickGroup) {
-            quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+            quickGroup = { groupName: 'Someone Else is Relying on Me', tasks: [] };
             taskData.longterm.unshift(quickGroup);
         }
 
@@ -3800,10 +3800,10 @@ window.addQuickTask = function(section) {
 
     if (!title) return;
 
-    // Add to "Quick Tasks" group or create it
-    let quickGroup = taskData[section].find(g => g.groupName === 'Quick Tasks');
+    // Add to "Someone Else is Relying on Me" group or create it
+    let quickGroup = taskData[section].find(g => g.groupName === 'Someone Else is Relying on Me');
     if (!quickGroup) {
-        quickGroup = { groupName: 'Quick Tasks', tasks: [] };
+        quickGroup = { groupName: 'Someone Else is Relying on Me', tasks: [] };
         taskData[section].unshift(quickGroup);
     }
 
@@ -6603,7 +6603,7 @@ async function handleChatAction(action, fullResponse) {
             let addedCount = 0;
             action.tasks.forEach(t => {
                 const section = t.section || 'today';
-                const projectName = t.project || 'Quick Tasks';
+                const projectName = t.project || 'Someone Else is Relying on Me';
 
                 // Find or create project group
                 let groupIndex = taskData[section].findIndex(g => g.groupName === projectName);
