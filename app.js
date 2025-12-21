@@ -800,13 +800,18 @@ function getTasksForTodayZone() {
     return allTasks.filter(task => {
         if (task.completed && !settings.showCompleted) return false;
         
-        // Check if due date is today (but not in critical zone)
+        // Check if due date is today
         const isDueToday = (task.dueDate === today) || (task.externalDeadline === today);
+        if (!isDueToday) return false;
         
         // Don't show if it's explicitly in critical zone (already shown there)
         if (task.zone === 'critical') return false;
         
-        return isDueToday;
+        // Don't show if it's in focus zone (focus takes precedence)
+        if (task.isInFocus === true) return false;
+        
+        // Tasks with due dates today should show in Today zone regardless of other zone assignments
+        return true;
     });
 }
 
@@ -818,13 +823,18 @@ function getTasksForTomorrowZone() {
     return allTasks.filter(task => {
         if (task.completed && !settings.showCompleted) return false;
         
-        // Check if due date is tomorrow (but not in critical zone)
+        // Check if due date is tomorrow
         const isDueTomorrow = (task.dueDate === tomorrow) || (task.externalDeadline === tomorrow);
+        if (!isDueTomorrow) return false;
         
         // Don't show if it's explicitly in critical zone (already shown there)
         if (task.zone === 'critical') return false;
         
-        return isDueTomorrow;
+        // Don't show if it's in focus zone (focus takes precedence)
+        if (task.isInFocus === true) return false;
+        
+        // Tasks with due dates tomorrow should show in Tomorrow zone regardless of other zone assignments
+        return true;
     });
 }
 
@@ -840,6 +850,9 @@ function getTasksForWeekZone() {
         
         // Don't show if already in critical zone
         if (task.zone === 'critical') return false;
+        
+        // Don't show if it's in focus zone (focus takes precedence)
+        if (task.isInFocus === true) return false;
         
         // Check if due date is within this week (but not today or tomorrow, as they're in separate zones)
         const taskDate = task.dueDate || task.externalDeadline;
@@ -880,6 +893,9 @@ function getTasksForNextMonthZone() {
         
         // Don't show if already in critical zone
         if (task.zone === 'critical') return false;
+        
+        // Don't show if it's in focus zone (focus takes precedence)
+        if (task.isInFocus === true) return false;
         
         const taskDate = task.dueDate || task.externalDeadline;
         if (!taskDate) return false;
