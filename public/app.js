@@ -1514,48 +1514,75 @@ function handleTaskDrop(e) {
     if (e.stopPropagation) {
         e.stopPropagation();
     }
-    
+
     if (draggedType !== 'task' || !draggedElement) return false;
-    
-    const dropTarget = this;
+
+    // Find the actual drop target - could be this element or need to find parent task-item
+    let dropTarget = this;
+    if (!dropTarget.classList.contains('task-item') && !dropTarget.classList.contains('task-list')) {
+        // Try to find parent task-item or task-list
+        const parentTaskItem = this.closest('.task-item');
+        const parentTaskList = this.closest('.task-list');
+        if (parentTaskItem) {
+            dropTarget = parentTaskItem;
+        } else if (parentTaskList) {
+            dropTarget = parentTaskList;
+        } else {
+            // Could be dropping in a zone - let zone handler deal with it
+            return false;
+        }
+    }
+
     const draggedSection = draggedElement.dataset.section;
     const draggedGroupIndex = parseInt(draggedElement.dataset.groupIndex);
     const draggedTaskIndex = parseInt(draggedElement.dataset.taskIndex);
-    
+
     // Validate indices
     if (isNaN(draggedGroupIndex) || isNaN(draggedTaskIndex)) {
         console.error('Invalid drag indices:', { draggedGroupIndex, draggedTaskIndex });
         return false;
     }
-    
+
     // Validate data exists
-    if (!taskData[draggedSection] || 
+    if (!taskData[draggedSection] ||
         !taskData[draggedSection][draggedGroupIndex] ||
         !taskData[draggedSection][draggedGroupIndex].tasks ||
         draggedTaskIndex >= taskData[draggedSection][draggedGroupIndex].tasks.length) {
         console.error('Invalid drag source:', { draggedSection, draggedGroupIndex, draggedTaskIndex });
         return false;
     }
-    
+
     // Determine drop location
     let dropSection, dropGroupIndex, dropTaskIndex;
-    
+
     if (dropTarget.classList.contains('task-item')) {
         // Dropping on another task
         dropSection = dropTarget.dataset.section;
         dropGroupIndex = parseInt(dropTarget.dataset.groupIndex);
         dropTaskIndex = parseInt(dropTarget.dataset.taskIndex);
+
+        // Validate we got the data attributes
+        if (!dropSection || isNaN(dropGroupIndex) || isNaN(dropTaskIndex)) {
+            console.error('Task item missing data attributes:', {
+                element: dropTarget,
+                section: dropTarget.dataset.section,
+                groupIndex: dropTarget.dataset.groupIndex,
+                taskIndex: dropTarget.dataset.taskIndex
+            });
+            return false;
+        }
     } else if (dropTarget.classList.contains('task-list')) {
         // Dropping on task list (end of group)
         dropSection = dropTarget.dataset.section;
         dropGroupIndex = parseInt(dropTarget.dataset.groupIndex);
         // Validate drop target exists
         if (!taskData[dropSection] || !taskData[dropSection][dropGroupIndex]) {
-            console.error('Invalid drop target:', { dropSection, dropGroupIndex });
+            console.error('Invalid drop target:', { dropSection, dropGroupIndex, element: dropTarget });
             return false;
         }
         dropTaskIndex = taskData[dropSection][dropGroupIndex].tasks.length;
     } else {
+        console.error('Drop target is neither task-item nor task-list:', dropTarget);
         return false;
     }
     
