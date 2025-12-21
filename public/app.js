@@ -3881,12 +3881,81 @@ window.handleQuickAdd = function(event, section) {
     }
 }
 
+// Parse natural language date from task title
+function parseDateFromTitle(title) {
+    const lowerTitle = title.toLowerCase();
+
+    // Patterns to match and their corresponding date offsets
+    const patterns = [
+        // Today patterns
+        { regex: /\b(today|tonight|this evening|this morning|this afternoon)\b/i, days: 0 },
+        // Tomorrow patterns
+        { regex: /\b(tomorrow|tmrw|tmw)\b/i, days: 1 },
+        // Day after tomorrow
+        { regex: /\b(day after tomorrow)\b/i, days: 2 },
+        // This week patterns
+        { regex: /\b(this week|this wk)\b/i, days: 7 },
+        // Next week patterns
+        { regex: /\b(next week|next wk)\b/i, days: 7 },
+        // Specific days of the week
+        { regex: /\b(monday|mon)\b/i, dayOfWeek: 1 },
+        { regex: /\b(tuesday|tues|tue)\b/i, dayOfWeek: 2 },
+        { regex: /\b(wednesday|wed)\b/i, dayOfWeek: 3 },
+        { regex: /\b(thursday|thurs|thu)\b/i, dayOfWeek: 4 },
+        { regex: /\b(friday|fri)\b/i, dayOfWeek: 5 },
+        { regex: /\b(saturday|sat)\b/i, dayOfWeek: 6 },
+        { regex: /\b(sunday|sun)\b/i, dayOfWeek: 0 },
+    ];
+
+    for (const pattern of patterns) {
+        const match = lowerTitle.match(pattern.regex);
+        if (match) {
+            let dueDate;
+            if (pattern.dayOfWeek !== undefined) {
+                // Calculate days until next occurrence of this day of week
+                const today = new Date();
+                const currentDay = today.getDay();
+                let daysUntil = pattern.dayOfWeek - currentDay;
+                if (daysUntil <= 0) daysUntil += 7; // Next week if today or past
+                dueDate = getDateDaysFromToday(daysUntil);
+            } else {
+                dueDate = getDateDaysFromToday(pattern.days);
+            }
+
+            // Remove the date phrase from the title (clean it up)
+            const cleanedTitle = title.replace(pattern.regex, '').replace(/\s+/g, ' ').trim();
+
+            return {
+                dueDate,
+                cleanedTitle: cleanedTitle || title, // Keep original if cleaning removes everything
+                matchedPhrase: match[0]
+            };
+        }
+    }
+
+    return null;
+}
+
 window.addQuickTask = function(section) {
     const inputId = section === 'today' ? 'quickAddToday' : 'quickAddLongterm';
     const input = document.getElementById(inputId);
     const title = input.value.trim();
 
     if (!title) return;
+
+    // Parse any date from the title
+    const dateInfo = parseDateFromTitle(title);
+
+    // Create the task object
+    const newTask = {
+        title: dateInfo ? dateInfo.cleanedTitle : title,
+        completed: false
+    };
+
+    // Set due date if parsed
+    if (dateInfo) {
+        newTask.dueDate = dateInfo.dueDate;
+    }
 
     // Add to "Quick Tasks" group or create it
     let quickGroup = taskData[section].find(g => g.groupName === 'Quick Tasks');
@@ -3895,7 +3964,7 @@ window.addQuickTask = function(section) {
         taskData[section].unshift(quickGroup);
     }
 
-    quickGroup.tasks.push({ title, completed: false });
+    quickGroup.tasks.push(newTask);
     input.value = '';
 
     saveData();
