@@ -589,6 +589,28 @@ function isDateWithinDays(dateStr, days) {
     return daysDiff >= 0 && daysDiff <= days;
 }
 
+// Check if a date string is in the next calendar month
+function isDateInNextMonth(dateStr) {
+    if (!dateStr) return false;
+    const taskDate = new Date(dateStr);
+    taskDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get first day of next month
+    const nextMonth = new Date(today);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setDate(1);
+    nextMonth.setHours(0, 0, 0, 0);
+    
+    // Get first day of month after next
+    const monthAfterNext = new Date(nextMonth);
+    monthAfterNext.setMonth(monthAfterNext.getMonth() + 1);
+    
+    // Task is in next month if it's >= first day of next month and < first day of month after next
+    return taskDate >= nextMonth && taskDate < monthAfterNext;
+}
+
 // Get all tasks with their metadata (section, groupIndex, taskIndex, groupName)
 function getAllTasksWithMetadata() {
     const allTasks = [];
@@ -735,6 +757,11 @@ function getTasksForInboxZone() {
     return allTasks.filter(task => {
         if (task.completed && !settings.showCompleted) return false;
         
+        // Don't show tasks with due dates in inbox - they should go to date-based zones
+        if (task.dueDate || task.externalDeadline) {
+            return false;
+        }
+        
         // Explicitly in inbox zone
         if (task.zone === 'inbox') return true;
         
@@ -842,6 +869,38 @@ function getTasksForWeekZone() {
     });
 }
 
+// Get tasks for Next Month zone
+function getTasksForNextMonthZone() {
+    const allTasks = getAllTasksWithMetadata();
+    const today = getTodayDate();
+    const weekEnd = getDateDaysFromToday(7);
+    
+    return allTasks.filter(task => {
+        if (task.completed && !settings.showCompleted) return false;
+        
+        // Don't show if already in critical zone
+        if (task.zone === 'critical') return false;
+        
+        const taskDate = task.dueDate || task.externalDeadline;
+        if (!taskDate) return false;
+        
+        // Skip if due today, tomorrow, or this week (they're in separate zones)
+        const taskDateObj = new Date(taskDate);
+        taskDateObj.setHours(0, 0, 0, 0);
+        const todayDate = new Date(today);
+        todayDate.setHours(0, 0, 0, 0);
+        const weekEndDate = new Date(weekEnd);
+        weekEndDate.setHours(0, 0, 0, 0);
+        
+        if (taskDateObj <= weekEndDate) {
+            return false;
+        }
+        
+        // Show if due in the next calendar month
+        return isDateInNextMonth(taskDate);
+    });
+}
+
 // Get tasks for Nice zone
 function getTasksForNiceZone() {
     const allTasks = getAllTasksWithMetadata();
@@ -856,8 +915,8 @@ function getTasksForNiceZone() {
 
 // Auto-update task zone property based on other properties
 function updateTaskZoneProperties(task) {
-    // Don't override explicit zone assignment
-    if (task.zone === 'inbox' || task.zone === 'critical' || task.zone === 'focus' || task.zone === 'nice') {
+    // Don't override explicit zone assignment for certain zones
+    if (task.zone === 'critical' || task.zone === 'focus' || task.zone === 'nice') {
         // Zone already set explicitly, but we can still validate
         return;
     }
@@ -879,7 +938,13 @@ function updateTaskZoneProperties(task) {
         task.zone = 'critical';
     } else if (task.isInFocus) {
         task.zone = 'focus';
+    } else if (task.dueDate || task.externalDeadline) {
+        // Tasks with due dates should not go to inbox
+        // Zone will be determined by date-based zones (today, tomorrow, week, nextMonth)
+        // Don't set zone here - let the date-based zone functions handle it
+        return;
     } else {
+        // Only tasks without due dates go to inbox
         task.zone = 'inbox';
     }
 }
@@ -926,6 +991,8 @@ function renderZone(zoneType, containerId) {
         tasks = getTasksForTomorrowZone();
     } else if (zoneType === 'week') {
         tasks = getTasksForWeekZone();
+    } else if (zoneType === 'nextmonth') {
+        tasks = getTasksForNextMonthZone();
     } else if (zoneType === 'focus') {
         tasks = getTasksForFocusZone();
     } else if (zoneType === 'inbox') {
@@ -1038,6 +1105,7 @@ function renderTasks() {
     renderZone('today', 'todayTasksZone');
     renderZone('tomorrow', 'tomorrowTasksZone');
     renderZone('week', 'weekTasksZone');
+    renderZone('nextmonth', 'nextMonthTasks');
     renderZone('focus', 'focusTasks');
     renderZone('inbox', 'inboxTasks');
     renderZone('nice', 'niceTasks');

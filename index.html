@@ -101,6 +101,7 @@
             --zone-today: #2563EB;
             --zone-tomorrow: #3B82F6;
             --zone-week: #6366F1;
+            --zone-nextmonth: #8B5CF6;
             --zone-focus: #E88C0C;
             --zone-inbox: #6B7280;
             --zone-nice: #7C3AED;
@@ -2598,6 +2599,13 @@
             background: linear-gradient(90deg, rgba(99, 102, 241, 0.03) 0%, var(--bg-card) 3%);
         }
 
+        .zone.nextmonth::before {
+            background: linear-gradient(180deg, var(--zone-nextmonth) 0%, #C4B5FD 100%);
+        }
+        .zone.nextmonth {
+            background: linear-gradient(90deg, rgba(139, 92, 246, 0.03) 0%, var(--bg-card) 3%);
+        }
+
         .zone-header {
             display: flex;
             align-items: center;
@@ -2664,6 +2672,7 @@
         .zone.today .zone-title { color: var(--zone-today); }
         .zone.tomorrow .zone-title { color: var(--zone-tomorrow); }
         .zone.week .zone-title { color: var(--zone-week); }
+        .zone.nextmonth .zone-title { color: var(--zone-nextmonth); }
 
         .section {
             background: var(--bg-card);
@@ -4695,6 +4704,16 @@
                 <h2 class="zone-title">📊 This Week</h2>
             </div>
             <div id="weekTasksZone" class="task-list">
+                <!-- Tasks will be rendered here -->
+            </div>
+        </div>
+
+        <!-- ZONE D2: Next Month -->
+        <div class="zone nextmonth" id="nextMonthZone">
+            <div class="zone-header">
+                <h2 class="zone-title">📆 Next Month</h2>
+            </div>
+            <div id="nextMonthTasks" class="task-list">
                 <!-- Tasks will be rendered here -->
             </div>
         </div>

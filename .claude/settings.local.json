@@ -3,7 +3,20 @@
     "allow": [
       "Bash(dir:*)",
       "Bash(cp:*)",
-      "Bash(firebase deploy:*)"
-    ]
+      "Bash(firebase deploy:*)",
+      "Bash(npm install:*)",
+      "Bash(cat:*)",
+      "Bash(firebase projects:list:*)",
+      "Bash(firebase firestore:databases:*)",
+      "Bash(gcloud iam service-accounts create:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh secret:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": [],
+    "ask": []
   }
 }
