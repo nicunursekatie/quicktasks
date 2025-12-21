@@ -1541,7 +1541,7 @@
         /* In-frame Calendar View */
         .calendar-frame-view {
             display: none;
-            padding: 24px;
+            padding: 16px;
             height: 100%;
             overflow-y: auto;
             box-sizing: border-box;
@@ -1564,16 +1564,16 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 12px;
         }
 
         .calendar-frame-title {
-            font-size: 28px;
+            font-size: 20px;
             font-weight: 700;
             color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
         .calendar-back-btn {
@@ -1601,8 +1601,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
-            margin-bottom: 24px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
         .calendar-frame-nav-btn {
@@ -1610,9 +1610,9 @@
             border: 1px solid var(--border-light);
             color: var(--text-primary);
             cursor: pointer;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 14px;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 600;
             transition: all 0.2s ease;
         }
@@ -1624,20 +1624,20 @@
         }
 
         .calendar-frame-month {
-            font-size: 24px;
+            font-size: 16px;
             font-weight: 700;
             color: var(--text-primary);
-            min-width: 200px;
+            min-width: 160px;
             text-align: center;
         }
 
         .calendar-frame-grid {
             display: none;
             grid-template-columns: repeat(7, 1fr);
-            gap: 6px;
+            gap: 4px;
             background: var(--bg-card);
-            border-radius: 16px;
-            padding: 16px;
+            border-radius: 10px;
+            padding: 10px;
             box-shadow: var(--shadow-md);
             flex: 1;
             min-height: 0;
@@ -1649,19 +1649,19 @@
 
         .calendar-frame-day-name {
             text-align: center;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
             color: var(--text-secondary);
-            padding: 12px 0;
+            padding: 6px 0;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
         .calendar-frame-day {
-            min-height: 80px;
-            padding: 8px;
+            min-height: 60px;
+            padding: 4px;
             background: var(--bg-page);
-            border-radius: 10px;
+            border-radius: 6px;
             border: 1px solid var(--border-light);
             cursor: pointer;
             transition: all 0.2s ease;
@@ -1670,7 +1670,7 @@
 
         .calendar-frame-day:hover {
             border-color: var(--accent-primary);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
         }
 
         .calendar-frame-day.today {
@@ -1684,35 +1684,36 @@
         }
 
         .calendar-frame-day-number {
-            font-size: 16px;
+            font-size: 12px;
             font-weight: 700;
             color: var(--text-primary);
-            margin-bottom: 6px;
+            margin-bottom: 2px;
         }
 
         .calendar-frame-day.today .calendar-frame-day-number {
             background: var(--accent-primary);
             color: white;
-            width: 28px;
-            height: 28px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 11px;
         }
 
         .calendar-frame-events {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 2px;
         }
 
         .calendar-frame-event {
-            font-size: 11px;
-            padding: 3px 8px;
+            font-size: 9px;
+            padding: 2px 4px;
             background: var(--accent-primary);
             color: white;
-            border-radius: 4px;
+            border-radius: 3px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1724,9 +1725,9 @@
         }
 
         .calendar-frame-more {
-            font-size: 11px;
+            font-size: 9px;
             color: var(--text-muted);
-            padding: 2px 0;
+            padding: 1px 0;
         }
 
         /* Calendar View Toggle Buttons */
@@ -2063,23 +2064,25 @@
         }
 
         .calendar-frame-footer {
-            margin-top: 24px;
-            padding: 20px;
+            margin-top: 12px;
+            padding: 10px 14px;
             background: var(--bg-card);
-            border-radius: 12px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .calendar-google-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
         .calendar-google-status {
-            font-size: 14px;
+            font-size: 12px;
             color: var(--text-secondary);
         }
 
@@ -2087,34 +2090,64 @@
             color: #16a34a;
         }
 
-        /* Calendar Picker */
+        .calendar-frame-footer .google-connect-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .calendar-frame-footer .google-connect-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Calendar Picker - Collapsible */
         .calendar-picker-section {
-            margin-top: 16px;
-            padding: 16px;
+            margin-top: 12px;
             background: var(--bg-page);
-            border-radius: 10px;
+            border-radius: 8px;
             border: 1px solid var(--border-light);
+            overflow: hidden;
         }
 
         .calendar-picker-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+            background: var(--bg-card);
+        }
+
+        .calendar-picker-header:hover {
+            background: var(--bg-secondary);
         }
 
         .calendar-picker-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .calendar-picker-title::before {
+            content: '▶';
+            font-size: 10px;
+            transition: transform 0.2s ease;
+        }
+
+        .calendar-picker-section.expanded .calendar-picker-title::before {
+            transform: rotate(90deg);
         }
 
         .calendar-picker-toggle {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--accent-primary);
             background: none;
             border: none;
             cursor: pointer;
+            padding: 4px 8px;
         }
 
         .calendar-picker-toggle:hover {
@@ -2122,20 +2155,25 @@
         }
 
         .calendar-picker-list {
-            display: flex;
+            display: none;
             flex-direction: column;
-            gap: 8px;
-            max-height: 200px;
+            gap: 4px;
+            max-height: 150px;
             overflow-y: auto;
+            padding: 8px;
+        }
+
+        .calendar-picker-section.expanded .calendar-picker-list {
+            display: flex;
         }
 
         .calendar-picker-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
+            gap: 8px;
+            padding: 6px 10px;
             background: var(--bg-card);
-            border-radius: 8px;
+            border-radius: 6px;
             border: 1px solid var(--border-light);
             cursor: pointer;
             transition: all 0.2s ease;
@@ -2150,14 +2188,14 @@
         }
 
         .calendar-picker-checkbox {
-            width: 18px;
-            height: 18px;
-            border-radius: 4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
             border: 2px solid var(--border-medium);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 10px;
             color: white;
             transition: all 0.2s ease;
             flex-shrink: 0;
@@ -2169,14 +2207,14 @@
         }
 
         .calendar-picker-color {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             flex-shrink: 0;
         }
 
         .calendar-picker-name {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-primary);
             flex: 1;
             white-space: nowrap;
@@ -2185,11 +2223,11 @@
         }
 
         .calendar-picker-count {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--text-muted);
             background: var(--bg-page);
-            padding: 2px 8px;
-            border-radius: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
         }
 
         /* Notes Section */
@@ -4724,11 +4762,11 @@
                         Connect Google Calendar
                     </button>
                 </div>
-                <!-- Calendar Picker -->
+                <!-- Calendar Picker - Collapsible -->
                 <div class="calendar-picker-section" id="calendarPickerSection" style="display: none;">
-                    <div class="calendar-picker-header">
-                        <span class="calendar-picker-title">Select Calendars to Display</span>
-                        <button class="calendar-picker-toggle" onclick="toggleAllCalendars()" title="Select or deselect all calendars">Toggle All</button>
+                    <div class="calendar-picker-header" onclick="toggleCalendarPickerExpand()">
+                        <span class="calendar-picker-title">Select Calendars</span>
+                        <button class="calendar-picker-toggle" onclick="event.stopPropagation(); toggleAllCalendars()" title="Select or deselect all calendars">Toggle All</button>
                     </div>
                     <div class="calendar-picker-list" id="calendarPickerList">
                         <!-- Calendar items will be rendered here -->
@@ -6617,6 +6655,15 @@
                 renderCalendarFrame();
             }
         }
+
+        // Toggle calendar picker expand/collapse
+        function toggleCalendarPickerExpand() {
+            const section = document.getElementById('calendarPickerSection');
+            if (section) {
+                section.classList.toggle('expanded');
+            }
+        }
+        window.toggleCalendarPickerExpand = toggleCalendarPickerExpand;
 
         function saveSelectedCalendars() {
             localStorage.setItem('selectedCalendarIds', JSON.stringify(selectedCalendarIds));
