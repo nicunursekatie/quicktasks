@@ -1781,21 +1781,30 @@ function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
                         ${task.tags.map(tag => `<span class="task-tag">${escapeHtml(tag)}</span>`).join('')}
                     </div>
                 ` : ''}
-                ${task.subtasks ? `
-                    <div class="subtasks">
-                        ${task.subtasks.map((subtask, subIndex) => `
-                            <div class="subtask ${subtask.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
-                                <input type="checkbox"
-                                       class="subtask-checkbox"
-                                       ${subtask.completed ? 'checked' : ''}
-                                       onclick="toggleSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})"
-                                       title="Mark subtask as ${subtask.completed ? 'incomplete' : 'complete'}">
-                                <span onclick="editSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" style="cursor: pointer; flex: 1;">${escapeHtml(subtask.title)}</span>
-                                <button class="subtask-delete-btn" onclick="event.stopPropagation(); deleteSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" title="Delete subtask">×</button>
-                            </div>
-                        `).join('')}
+                <div class="subtasks-container" onclick="event.stopPropagation()">
+                    ${task.subtasks ? `
+                        <div class="subtasks">
+                            ${task.subtasks.map((subtask, subIndex) => `
+                                <div class="subtask ${subtask.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
+                                    <input type="checkbox"
+                                           class="subtask-checkbox"
+                                           ${subtask.completed ? 'checked' : ''}
+                                           onclick="toggleSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})"
+                                           title="Mark subtask as ${subtask.completed ? 'incomplete' : 'complete'}">
+                                    <span onclick="editSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" style="cursor: pointer; flex: 1;">${escapeHtml(subtask.title)}</span>
+                                    <button class="subtask-delete-btn" onclick="event.stopPropagation(); deleteSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" title="Delete subtask">×</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="inline-subtask-add" id="inline-subtask-${section}-${groupIndex}-${taskIndex}" style="display: none;">
+                        <input type="text" class="inline-subtask-input" placeholder="Enter subtask..."
+                               onkeydown="handleInlineSubtaskKeydown(event, '${section}', ${groupIndex}, ${taskIndex})">
+                        <button class="inline-subtask-save" onclick="saveInlineSubtask('${section}', ${groupIndex}, ${taskIndex})">Add</button>
+                        <button class="inline-subtask-cancel" onclick="cancelInlineSubtask('${section}', ${groupIndex}, ${taskIndex})">×</button>
                     </div>
-                ` : ''}
+                    <button class="add-subtask-inline-btn" onclick="showInlineSubtaskInput('${section}', ${groupIndex}, ${taskIndex})">+ Add subtask</button>
+                </div>
             </div>
             <div class="task-actions">
                 <button class="status-toggle-btn"
@@ -2139,6 +2148,61 @@ window.toggleSubtask = function(section, groupIndex, taskIndex, subIndex) {
     updateProgress();
 }
 
+// Inline subtask adding
+window.showInlineSubtaskInput = function(section, groupIndex, taskIndex) {
+    const container = document.getElementById(`inline-subtask-${section}-${groupIndex}-${taskIndex}`);
+    const addBtn = container.nextElementSibling;
+    container.style.display = 'flex';
+    addBtn.style.display = 'none';
+    const input = container.querySelector('.inline-subtask-input');
+    input.value = '';
+    input.focus();
+}
+
+window.cancelInlineSubtask = function(section, groupIndex, taskIndex) {
+    const container = document.getElementById(`inline-subtask-${section}-${groupIndex}-${taskIndex}`);
+    const addBtn = container.nextElementSibling;
+    container.style.display = 'none';
+    addBtn.style.display = 'block';
+}
+
+window.saveInlineSubtask = function(section, groupIndex, taskIndex) {
+    const container = document.getElementById(`inline-subtask-${section}-${groupIndex}-${taskIndex}`);
+    const input = container.querySelector('.inline-subtask-input');
+    const title = input.value.trim();
+
+    if (!title) {
+        cancelInlineSubtask(section, groupIndex, taskIndex);
+        return;
+    }
+
+    const task = taskData[section][groupIndex].tasks[taskIndex];
+    if (!task.subtasks) {
+        task.subtasks = [];
+    }
+    task.subtasks.push({ title: title, completed: false });
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+
+    // Re-show the input for adding another subtask
+    setTimeout(() => {
+        showInlineSubtaskInput(section, groupIndex, taskIndex);
+    }, 0);
+}
+
+window.handleInlineSubtaskKeydown = function(event, section, groupIndex, taskIndex) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        saveInlineSubtask(section, groupIndex, taskIndex);
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelInlineSubtask(section, groupIndex, taskIndex);
+    }
+}
+
 // Toggle task status (cycle through statuses)
 window.toggleTaskStatus = function(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
@@ -2372,6 +2436,14 @@ function renderEditSubtasks() {
 window.addSubtaskInEdit = function() {
     const { section, groupIndex, taskIndex } = currentEditTask;
     const task = taskData[section][groupIndex].tasks[taskIndex];
+
+    // Sync current input values before adding new subtask
+    if (task.subtasks) {
+        const inputs = document.querySelectorAll('.subtask-edit-input');
+        inputs.forEach((input, index) => {
+            task.subtasks[index].title = input.value;
+        });
+    }
 
     if (!task.subtasks) {
         task.subtasks = [];
