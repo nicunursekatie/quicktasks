@@ -2945,8 +2945,7 @@
 
         .task-item {
             display: flex;
-            align-items: flex-start;
-            gap: var(--spacing-sm);
+            flex-direction: column;
             padding: 12px 14px;
             border-radius: var(--radius-md);
             margin-bottom: 6px;
@@ -2955,6 +2954,12 @@
             border: 1px solid transparent;
             cursor: grab;
             position: relative;
+        }
+
+        .task-main-row {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
         }
 
         .task-item:hover {
@@ -3211,6 +3216,8 @@
 
         .subtasks-container {
             margin-top: 8px;
+            width: 100%;
+            padding-left: 32px;
         }
 
         .add-subtask-inline-btn {
@@ -3233,7 +3240,6 @@
             gap: 8px;
             align-items: center;
             margin-top: 8px;
-            padding-left: 14px;
         }
 
         .inline-subtask-input {

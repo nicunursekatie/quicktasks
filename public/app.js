@@ -1193,6 +1193,51 @@ let draggedType = null; // 'task' or 'group'
 let isDragging = false; // Track if we're currently dragging
 window.isDragging = false; // Make it accessible from inline handlers
 
+// Auto-scroll during drag
+let autoScrollInterval = null;
+const SCROLL_ZONE_SIZE = 80; // pixels from edge to trigger scroll
+const SCROLL_SPEED = 15; // pixels per frame
+
+function startAutoScroll(e) {
+    const y = e.clientY;
+    const windowHeight = window.innerHeight;
+
+    // Clear any existing interval
+    if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+        autoScrollInterval = null;
+    }
+
+    // Check if near top or bottom edge
+    if (y < SCROLL_ZONE_SIZE) {
+        // Scroll up
+        const intensity = 1 - (y / SCROLL_ZONE_SIZE);
+        autoScrollInterval = setInterval(() => {
+            window.scrollBy(0, -SCROLL_SPEED * intensity);
+        }, 16);
+    } else if (y > windowHeight - SCROLL_ZONE_SIZE) {
+        // Scroll down
+        const intensity = 1 - ((windowHeight - y) / SCROLL_ZONE_SIZE);
+        autoScrollInterval = setInterval(() => {
+            window.scrollBy(0, SCROLL_SPEED * intensity);
+        }, 16);
+    }
+}
+
+function stopAutoScroll() {
+    if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+        autoScrollInterval = null;
+    }
+}
+
+// Global drag handler for auto-scroll
+function handleGlobalDrag(e) {
+    if (isDragging) {
+        startAutoScroll(e);
+    }
+}
+
 // Track if listeners are attached to avoid duplicates
 let dragListenersAttached = false;
 
@@ -1306,26 +1351,29 @@ function handleGroupDragStart(e) {
     // Allow dragging from drag handle or anywhere except buttons
     const isButton = e.target.tagName === 'BUTTON' || e.target.closest('button');
     const isInActions = e.target.closest('.group-actions');
-    
+
     // Allow dragging from h2 or drag handle, but not from buttons
     if (isButton || isInActions) {
         e.stopPropagation();
         return false;
     }
-    
+
     isDragging = true;
     window.isDragging = true;
     draggedElement = this;
     draggedType = 'group';
     this.classList.add('dragging');
-    
+
+    // Start listening for drag position to enable auto-scroll
+    document.addEventListener('dragover', handleGlobalDrag);
+
     try {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', this.dataset.groupIndex || '');
     } catch (err) {
         // Ignore data transfer errors
     }
-    
+
     return true;
 }
 
@@ -1335,25 +1383,28 @@ function handleTaskDragStart(e) {
     const isInput = e.target.tagName === 'INPUT' || e.target.closest('input');
     const isCheckbox = e.target.type === 'checkbox' || e.target.closest('input[type="checkbox"]');
     const isInActions = e.target.closest('.task-actions');
-    
+
     if (isButton || isInput || isCheckbox || isInActions) {
         e.stopPropagation();
         return false;
     }
-    
+
     isDragging = true;
     window.isDragging = true;
     draggedElement = this;
     draggedType = 'task';
     this.classList.add('dragging');
-    
+
+    // Start listening for drag position to enable auto-scroll
+    document.addEventListener('dragover', handleGlobalDrag);
+
     try {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', this.dataset.taskIndex || '');
     } catch (err) {
         // Ignore data transfer errors
     }
-    
+
     return true;
 }
 
@@ -1687,12 +1738,16 @@ function handleZoneDrop(e) {
 
 function handleDragEnd(e) {
     this.classList.remove('dragging');
-    
+
+    // Stop auto-scroll and remove listener
+    stopAutoScroll();
+    document.removeEventListener('dragover', handleGlobalDrag);
+
     // Remove all drag-over classes
     document.querySelectorAll('.drag-over, .drag-over-list').forEach(el => {
         el.classList.remove('drag-over', 'drag-over-list');
     });
-    
+
     // Reset drag state after a short delay to allow drop handlers to run
     setTimeout(() => {
         isDragging = false;
@@ -1740,73 +1795,50 @@ function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
     }
 
     return `
-        <div class="task-item ${task.completed ? 'checked' : ''} ${zoneClass} ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'focused-task' : ''}" 
-             draggable="true" 
-             data-section="${section}" 
-             data-group-index="${groupIndex}" 
+        <div class="task-item ${task.completed ? 'checked' : ''} ${zoneClass} ${settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex && settings.activeTask.taskIndex === taskIndex ? 'focused-task' : ''}"
+             draggable="true"
+             data-section="${section}"
+             data-group-index="${groupIndex}"
              data-task-index="${taskIndex}"
              data-zone="${zoneType || task.zone || ''}">
-            <span class="drag-handle-task" title="Drag to reorder" style="user-select: none;">⋮⋮</span>
-            <input type="checkbox"
-                   class="task-checkbox"
-                   ${task.completed ? 'checked' : ''}
-                   onclick="toggleTask('${section}', ${groupIndex}, ${taskIndex})"
-                   title="Mark as ${task.completed ? 'incomplete' : 'complete'}">
-            <div class="task-content" onclick="if(!window.isDragging) editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
-                <div class="task-title">
-                    ${task.emotionalWeight === 'light' ? '💨 ' : task.emotionalWeight === 'moderate' ? '⚖️ ' : task.emotionalWeight === 'heavy' ? '🎯 ' : ''}${escapeHtml(task.title)}
-                    ${zoneIndicators}
-                    ${task.status && task.status !== 'not-started' ? `<span style="display: inline-block; margin-left: 8px; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; ${
-                        task.status === 'planning' ? 'background: rgba(255, 193, 7, 0.2); color: #f39c12; border: 1px solid rgba(243, 156, 18, 0.4);' :
-                        task.status === 'in-progress' ? 'background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.4);' :
-                        task.status === 'completed' ? 'background: rgba(46, 204, 113, 0.2); color: #27ae60; border: 1px solid rgba(39, 174, 96, 0.4);' :
-                        'background: rgba(149, 165, 166, 0.2); color: #7f8c8d; border: 1px solid rgba(127, 140, 141, 0.4);'
-                    }">${
-                        task.status === 'planning' ? '💭 Planning' :
-                        task.status === 'in-progress' ? '🔵 In Progress' :
-                        task.status === 'completed' ? '✅ Completed' :
-                        '⚪ Not Started'
-                    }</span>` : ''}
-                    ${task.notes ? `<span style="display: inline-block; margin-left: 6px; font-size: 14px;" title="Has notes/plan">📝</span>` : ''}
-                    ${task.completed && task.actualMinutes && task.estimatedMinutes
-                        ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.actualMinutes}/${task.estimatedMinutes}min</span>`
-                        : task.estimatedMinutes
-                        ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.estimatedMinutes}min</span>`
-                        : ''
-                    }
-                    ${task.dueDate && !task.externalDeadline ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">📅 ${task.dueDate}</span>` : ''}
-                </div>
-                ${task.tags && task.tags.length > 0 ? `
-                    <div class="task-tags">
-                        ${task.tags.map(tag => `<span class="task-tag">${escapeHtml(tag)}</span>`).join('')}
+            <div class="task-main-row">
+                <span class="drag-handle-task" title="Drag to reorder" style="user-select: none;">⋮⋮</span>
+                <input type="checkbox"
+                       class="task-checkbox"
+                       ${task.completed ? 'checked' : ''}
+                       onclick="toggleTask('${section}', ${groupIndex}, ${taskIndex})"
+                       title="Mark as ${task.completed ? 'incomplete' : 'complete'}">
+                <div class="task-content" onclick="if(!window.isDragging) editTask('${section}', ${groupIndex}, ${taskIndex})" style="cursor: pointer;">
+                    <div class="task-title">
+                        ${task.emotionalWeight === 'light' ? '💨 ' : task.emotionalWeight === 'moderate' ? '⚖️ ' : task.emotionalWeight === 'heavy' ? '🎯 ' : ''}${escapeHtml(task.title)}
+                        ${zoneIndicators}
+                        ${task.status && task.status !== 'not-started' ? `<span style="display: inline-block; margin-left: 8px; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; ${
+                            task.status === 'planning' ? 'background: rgba(255, 193, 7, 0.2); color: #f39c12; border: 1px solid rgba(243, 156, 18, 0.4);' :
+                            task.status === 'in-progress' ? 'background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.4);' :
+                            task.status === 'completed' ? 'background: rgba(46, 204, 113, 0.2); color: #27ae60; border: 1px solid rgba(39, 174, 96, 0.4);' :
+                            'background: rgba(149, 165, 166, 0.2); color: #7f8c8d; border: 1px solid rgba(127, 140, 141, 0.4);'
+                        }">${
+                            task.status === 'planning' ? '💭 Planning' :
+                            task.status === 'in-progress' ? '🔵 In Progress' :
+                            task.status === 'completed' ? '✅ Completed' :
+                            '⚪ Not Started'
+                        }</span>` : ''}
+                        ${task.notes ? `<span style="display: inline-block; margin-left: 6px; font-size: 14px;" title="Has notes/plan">📝</span>` : ''}
+                        ${task.completed && task.actualMinutes && task.estimatedMinutes
+                            ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.actualMinutes}/${task.estimatedMinutes}min</span>`
+                            : task.estimatedMinutes
+                            ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">⏱️ ${task.estimatedMinutes}min</span>`
+                            : ''
+                        }
+                        ${task.dueDate && !task.externalDeadline ? `<span style="font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 8px;">📅 ${task.dueDate}</span>` : ''}
                     </div>
-                ` : ''}
-                <div class="subtasks-container" onclick="event.stopPropagation()">
-                    ${task.subtasks ? `
-                        <div class="subtasks">
-                            ${task.subtasks.map((subtask, subIndex) => `
-                                <div class="subtask ${subtask.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
-                                    <input type="checkbox"
-                                           class="subtask-checkbox"
-                                           ${subtask.completed ? 'checked' : ''}
-                                           onclick="toggleSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})"
-                                           title="Mark subtask as ${subtask.completed ? 'incomplete' : 'complete'}">
-                                    <span onclick="editSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" style="cursor: pointer; flex: 1;">${escapeHtml(subtask.title)}</span>
-                                    <button class="subtask-delete-btn" onclick="event.stopPropagation(); deleteSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" title="Delete subtask">×</button>
-                                </div>
-                            `).join('')}
+                    ${task.tags && task.tags.length > 0 ? `
+                        <div class="task-tags">
+                            ${task.tags.map(tag => `<span class="task-tag">${escapeHtml(tag)}</span>`).join('')}
                         </div>
                     ` : ''}
-                    <div class="inline-subtask-add" id="inline-subtask-${section}-${groupIndex}-${taskIndex}" style="display: none;">
-                        <input type="text" class="inline-subtask-input" placeholder="Enter subtask..."
-                               onkeydown="handleInlineSubtaskKeydown(event, '${section}', ${groupIndex}, ${taskIndex})">
-                        <button class="inline-subtask-save" onclick="saveInlineSubtask('${section}', ${groupIndex}, ${taskIndex})">Add</button>
-                        <button class="inline-subtask-cancel" onclick="cancelInlineSubtask('${section}', ${groupIndex}, ${taskIndex})">×</button>
-                    </div>
-                    <button class="add-subtask-inline-btn" onclick="showInlineSubtaskInput('${section}', ${groupIndex}, ${taskIndex})">+ Add subtask</button>
                 </div>
-            </div>
-            <div class="task-actions">
+                <div class="task-actions">
                 <button class="status-toggle-btn"
                         onclick="event.stopPropagation(); toggleTaskStatus('${section}', ${groupIndex}, ${taskIndex})"
                         title="Change status: ${task.status === 'planning' ? 'Planning' : task.status === 'in-progress' ? 'In Progress' : task.status === 'completed' ? 'Completed' : 'Not Started'}">${
@@ -1827,6 +1859,31 @@ function renderTask(section, groupIndex, taskIndex, task, zoneType = null) {
                 <button class="convert-btn" onclick="convertToEvent('${section}', ${groupIndex}, ${taskIndex})" title="Convert to calendar event">📅</button>
                 <button class="move-btn" onclick="moveTask('${section}', ${groupIndex}, ${taskIndex})" title="Move to ${section === 'today' ? 'Ongoing' : 'Today'}">${section === 'today' ? '📅' : '⚡'}</button>
                 <button class="delete-btn" onclick="deleteTask('${section}', ${groupIndex}, ${taskIndex})" title="Delete task">🗑️</button>
+                </div>
+            </div>
+            <div class="subtasks-container" onclick="event.stopPropagation()">
+                ${task.subtasks ? `
+                    <div class="subtasks">
+                        ${task.subtasks.map((subtask, subIndex) => `
+                            <div class="subtask ${subtask.completed ? 'checked' : ''}" onclick="event.stopPropagation()">
+                                <input type="checkbox"
+                                       class="subtask-checkbox"
+                                       ${subtask.completed ? 'checked' : ''}
+                                       onclick="toggleSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})"
+                                       title="Mark subtask as ${subtask.completed ? 'incomplete' : 'complete'}">
+                                <span onclick="editSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" style="cursor: pointer; flex: 1;">${escapeHtml(subtask.title)}</span>
+                                <button class="subtask-delete-btn" onclick="event.stopPropagation(); deleteSubtask('${section}', ${groupIndex}, ${taskIndex}, ${subIndex})" title="Delete subtask">×</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                <div class="inline-subtask-add" id="inline-subtask-${section}-${groupIndex}-${taskIndex}" style="display: none;">
+                    <input type="text" class="inline-subtask-input" placeholder="Enter subtask..."
+                           onkeydown="handleInlineSubtaskKeydown(event, '${section}', ${groupIndex}, ${taskIndex})">
+                    <button class="inline-subtask-save" onclick="saveInlineSubtask('${section}', ${groupIndex}, ${taskIndex})">Add</button>
+                    <button class="inline-subtask-cancel" onclick="cancelInlineSubtask('${section}', ${groupIndex}, ${taskIndex})">×</button>
+                </div>
+                <button class="add-subtask-inline-btn" onclick="showInlineSubtaskInput('${section}', ${groupIndex}, ${taskIndex})">+ Add subtask</button>
             </div>
         </div>
     `;
