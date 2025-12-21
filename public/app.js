@@ -121,6 +121,10 @@ let settings = JSON.parse(localStorage.getItem('settings')) || {
 let currentUser = null;
 let unsubscribe = null;
 
+// Undo stack for deleted tasks
+let deletedTasksStack = [];
+const MAX_UNDO_STACK = 20;
+
 // AI Chat state
 let chatHistory = [];
 let chatOpen = false;
@@ -731,36 +735,46 @@ function getTasksForInboxZone() {
     const allTasks = getAllTasksWithMetadata();
     const today = getTodayDate();
     const tomorrow = getDateDaysFromToday(1);
-    
+    const weekEnd = getDateDaysFromToday(7);
+
     return allTasks.filter(task => {
         if (task.completed && !settings.showCompleted) return false;
-        
+
+        // Check if task would appear in other date-based zones
+        const hasDueDate = task.dueDate;
+        if (hasDueDate) {
+            // If due today, tomorrow, or this week - don't show in inbox
+            if (task.dueDate <= weekEnd) {
+                return false;
+            }
+        }
+
+        // Check if in critical zone
+        const isBlocking = task.isBlocking === true;
+        const isUrgent = task.isUrgent === true;
+        const hasExternalDeadline = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
+        if ((isBlocking && (isUrgent || hasExternalDeadline)) || hasExternalDeadline) {
+            return false;
+        }
+
+        // Don't show if in focus
+        if (task.isInFocus) {
+            return false;
+        }
+
+        // Don't show if in nice zone
+        if (task.zone === 'nice') {
+            return false;
+        }
+
         // Explicitly in inbox zone
         if (task.zone === 'inbox') return true;
-        
-        // Tasks without explicit zone assignment (backwards compatibility)
-        // Only include if they don't match other zone criteria
-        if (!task.zone && !task.isInFocus) {
-            // Check if it would be in critical zone
-            const isBlocking = task.isBlocking === true;
-            const isUrgent = task.isUrgent === true;
-            const hasExternalDeadline = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
-            const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow);
-            
-            // Only show in inbox if not critical and not nice
-            // Critical = blocking AND (urgent OR external deadline soon OR urgent due date)
-            if ((isBlocking && (isUrgent || hasExternalDeadline || hasUrgentDueDate)) || hasExternalDeadline) {
-                return false;
-            }
-            
-            // Don't show in inbox if it's in nice zone
-            if (task.zone === 'nice') {
-                return false;
-            }
-            
+
+        // Tasks without explicit zone assignment go to inbox
+        if (!task.zone) {
             return true;
         }
-        
+
         return false;
     });
 }
@@ -1514,24 +1528,31 @@ function handleTaskDrop(e) {
     if (e.stopPropagation) {
         e.stopPropagation();
     }
+    e.preventDefault();
 
-    if (draggedType !== 'task' || !draggedElement) return false;
+    if (draggedType !== 'task' || !draggedElement) {
+        console.log('Drop ignored: no dragged task', { draggedType, draggedElement });
+        return false;
+    }
 
-    // Find the actual drop target - could be this element or need to find parent task-item
+    // Find the actual drop target
     let dropTarget = this;
+
+    // If this isn't a task-item or task-list, try to find the parent
     if (!dropTarget.classList.contains('task-item') && !dropTarget.classList.contains('task-list')) {
-        // Try to find parent task-item or task-list
-        const parentTaskItem = this.closest('.task-item');
-        const parentTaskList = this.closest('.task-list');
+        const parentTaskItem = e.target.closest('.task-item');
+        const parentTaskList = e.target.closest('.task-list');
         if (parentTaskItem) {
             dropTarget = parentTaskItem;
         } else if (parentTaskList) {
             dropTarget = parentTaskList;
         } else {
-            // Could be dropping in a zone - let zone handler deal with it
+            console.log('Drop target not found, letting zone handler deal with it');
             return false;
         }
     }
+
+    console.log('Drop target found:', dropTarget.className, dropTarget.dataset);
 
     const draggedSection = draggedElement.dataset.section;
     const draggedGroupIndex = parseInt(draggedElement.dataset.groupIndex);
@@ -2732,8 +2753,24 @@ window.editSubtask = function(section, groupIndex, taskIndex, subIndex) {
 // Delete task with confirmation
 window.deleteTask = function(section, groupIndex, taskIndex) {
     const task = taskData[section][groupIndex].tasks[taskIndex];
+    const groupName = taskData[section][groupIndex].groupName;
 
-    if (confirm(`Are you sure you want to delete this task?\n\n"${task.title}"\n\nThis action cannot be undone.`)) {
+    if (confirm(`Are you sure you want to delete this task?\n\n"${task.title}"\n\nPress Ctrl+Z to undo after deletion.`)) {
+        // Save to undo stack before deleting
+        deletedTasksStack.push({
+            task: JSON.parse(JSON.stringify(task)),
+            section,
+            groupIndex,
+            groupName,
+            taskIndex,
+            timestamp: Date.now()
+        });
+
+        // Limit undo stack size
+        if (deletedTasksStack.length > MAX_UNDO_STACK) {
+            deletedTasksStack.shift();
+        }
+
         // Check if this is the active focused task
         if (settings.activeTask &&
             settings.activeTask.section === section &&
@@ -2743,11 +2780,11 @@ window.deleteTask = function(section, groupIndex, taskIndex) {
             settings.activeTask = null;
             clearFocusTimer();
         }
-        
+
         taskData[section][groupIndex].tasks.splice(taskIndex, 1);
         if (taskData[section][groupIndex].tasks.length === 0) {
             taskData[section].splice(groupIndex, 1);
-            
+
             // Adjust active task index if needed
             if (settings.activeTask && settings.activeTask.section === section && settings.activeTask.groupIndex === groupIndex) {
                 settings.activeTask = null;
@@ -2767,6 +2804,36 @@ window.deleteTask = function(section, groupIndex, taskIndex) {
         updateStats();
         updateProgress();
     }
+}
+
+// Undo last deleted task
+window.undoDeleteTask = function() {
+    if (deletedTasksStack.length === 0) {
+        console.log('Nothing to undo');
+        return false;
+    }
+
+    const lastDeleted = deletedTasksStack.pop();
+    const { task, section, groupName } = lastDeleted;
+
+    // Find or create the group
+    let group = taskData[section].find(g => g.groupName === groupName);
+    if (!group) {
+        // Group was deleted, recreate it
+        group = { groupName, tasks: [] };
+        taskData[section].push(group);
+    }
+
+    // Add the task back
+    group.tasks.push(task);
+
+    saveData();
+    renderTasks();
+    updateStats();
+    updateProgress();
+
+    console.log('Task restored:', task.title);
+    return true;
 }
 
 // Delete subtask with confirmation
@@ -3945,6 +4012,7 @@ window.addQuickTask = function(section) {
 
     // Parse any date from the title
     const dateInfo = parseDateFromTitle(title);
+    console.log('Quick task parsing:', { title, dateInfo });
 
     // Create the task object
     const newTask = {
@@ -3955,6 +4023,7 @@ window.addQuickTask = function(section) {
     // Set due date if parsed
     if (dateInfo) {
         newTask.dueDate = dateInfo.dueDate;
+        console.log('Setting due date:', newTask.dueDate);
     }
 
     // Add to "Quick Tasks" group or create it
@@ -5421,6 +5490,16 @@ document.addEventListener('keydown', function(e) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         document.getElementById('quickAddToday').focus();
+    }
+    // Cmd/Ctrl + Z to undo deleted task
+    if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        // Only undo if not in an input field
+        const activeElement = document.activeElement;
+        const isInInput = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable;
+        if (!isInInput && deletedTasksStack.length > 0) {
+            e.preventDefault();
+            undoDeleteTask();
+        }
     }
     // Escape to close panels
     if (e.key === 'Escape') {
