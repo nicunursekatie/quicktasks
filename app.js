@@ -5133,8 +5133,8 @@ async function loadFromFirestore() {
             console.error('❌ Firestore API not enabled! Please enable it in Firebase Console.');
             alert('⚠️ Firestore Sync Disabled\n\n' +
                   'Cloud Firestore API needs to be enabled in your Firebase project.\n\n' +
-                  '1. Go to: https://console.firebase.google.com/project/quick-task-dashboard/settings/general\n' +
-                  '2. Or enable API here: https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=quick-task-dashboard\n\n' +
+                  '1. Go to: https://console.firebase.google.com/project/my-daily-dashboard/settings/general\n' +
+                  '2. Or enable API here: https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=my-daily-dashboard\n\n' +
                   'After enabling, wait a few minutes and refresh the page.');
             return false;
         } else if (error.code === 'unavailable' || (error.message && (error.message.includes('offline') || error.message.includes('Could not reach')))) {
