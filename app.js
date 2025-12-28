@@ -711,29 +711,32 @@ function getTasksForCriticalZone() {
     const allTasks = getAllTasksWithMetadata();
     const today = getTodayDate();
     const tomorrow = getDateDaysFromToday(1);
-    
+
     return allTasks.filter(task => {
         if (task.completed && !settings.showCompleted) return false;
-        
+
+        // Don't show if it's in focus zone (focus takes precedence to avoid duplicates)
+        if (task.isInFocus === true) return false;
+
         // Check if explicitly in critical zone
         if (task.zone === 'critical') return true;
-        
+
         // Critical zone requires: blocking AND (urgent OR external deadline soon)
         const isBlocking = task.isBlocking === true;
         const isUrgent = task.isUrgent === true;
         const hasExternalDeadlineSoon = task.externalDeadline && isDateWithinDays(task.externalDeadline, 3);
         const hasUrgentDueDate = task.dueDate && (task.dueDate === today || task.dueDate === tomorrow);
-        
+
         // Must be blocking AND (urgent OR external deadline soon OR urgent due date)
         if (isBlocking && (isUrgent || hasExternalDeadlineSoon || hasUrgentDueDate)) {
             return true;
         }
-        
+
         // Also include tasks with external deadline soon (even if not explicitly blocking)
         if (hasExternalDeadlineSoon) {
             return true;
         }
-        
+
         return false;
     });
 }
